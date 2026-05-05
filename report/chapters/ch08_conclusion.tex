@@ -1,0 +1,112 @@
+\chapter{Conclusions and Future Work}
+\label{ch:conclusion}
+
+\section{Summary of Contributions}
+
+This project conducted a comprehensive investigation of the Kaggle Hedge Fund Time Series Forecasting competition, progressing through three major phases:
+
+\subsection{Exploratory Data Analysis}
+
+The EDA provided the foundation for all subsequent modeling decisions:
+\begin{itemize}
+    \item Characterized the panel structure: 36,923 series across 23 entities, 4 horizons, with heterogeneous lengths.
+    \item Identified the heavy-tailed target distribution with near-zero median.
+    \item Discovered extreme weight concentration: top 1\% of rows $\to$ 65\% of the competition score.
+    \item Established that \textbf{100\% of eligible series achieve stationarity after first differencing}.
+    \item Found that individual feature correlations with the target are uniformly weak ($|\rho| < 0.10$).
+    \item Determined that panel-wide seasonality is absent.
+\end{itemize}
+
+\subsection{Classical Modeling}
+
+The classical modeling phase:
+\begin{itemize}
+    \item Evaluated 41 model specifications across 6 families (Baselines, AR, MA, ARMA, ARIMA, SARIMA).
+    \item Empirically validated the EDA's stationarity finding through $d=0$ vs. $d=1$ head-to-head comparisons.
+    \item Demonstrated that simple baselines (Expanding Mean, Rolling Mean) are surprisingly competitive.
+    \item Produced per-series winner tables showing substantial heterogeneity across the panel.
+\end{itemize}
+
+\subsection{Deep Sequence Modeling}
+
+The deep learning phase:
+\begin{itemize}
+    \item Implemented three recurrent architectures: vanilla RNN, GRU, and LSTM.
+    \item Employed recursive forecasting for multi-step prediction.
+    \item Developed adaptive training splits for series with limited pre-cutoff history.
+    \item Demonstrated that gated architectures (GRU, LSTM) generally outperform vanilla RNN.
+\end{itemize}
+
+\section{Key Takeaways}
+
+\begin{enumerate}
+    \item \textbf{Financial time series forecasting is inherently difficult.} The efficient-market hypothesis implies that easily exploitable patterns are quickly arbitraged away. Our results confirm that even well-specified models struggle to substantially outperform simple baselines.
+
+    \item \textbf{EDA-driven modeling is essential.} The stationarity analysis directly shaped the classical model specifications, and the weight concentration analysis informed metric selection. Modeling without thorough EDA would have produced misleading results.
+
+    \item \textbf{Model diversity enables ensemble opportunities.} The per-series winner analysis reveals that no single model is universally best. An ensemble that selects or blends models per-series could capture the best of each approach.
+
+    \item \textbf{The weight column is a first-class design element.} Its extreme concentration means that competition performance is dominated by a small fraction of observations. Weight-aware training and evaluation are non-negotiable.
+\end{enumerate}
+
+\section{Limitations}
+
+\begin{enumerate}
+    \item \textbf{Univariate deep models:} The current deep learning implementation uses only the target variable, not the 86 predictor features. This leaves substantial potential signal unexploited.
+
+    \item \textbf{Per-series training:} Both classical and deep models are trained independently per series, ignoring cross-series structure that panel methods could exploit.
+
+    \item \textbf{No weighted training loss:} The deep models use unweighted MSE loss, which does not align with the competition's weighted evaluation metric.
+
+    \item \textbf{Limited hyperparameter tuning:} Due to computational constraints, the deep learning hyperparameters were not exhaustively optimized.
+
+    \item \textbf{No gradient-boosted tree models:} LightGBM, XGBoost, and CatBoost---commonly dominant in tabular forecasting competitions---were not implemented in this study.
+\end{enumerate}
+
+\section{Future Work}
+
+Several promising directions remain:
+
+\subsection{Feature-Based Models}
+Incorporate the 86 predictor features using:
+\begin{itemize}
+    \item Gradient-boosted trees (LightGBM, XGBoost) with engineered lag features.
+    \item Transformer-based architectures (e.g., Temporal Fusion Transformer) that can attend to both temporal and cross-sectional patterns.
+    \item Multi-input recurrent networks that process feature vectors alongside the target sequence.
+\end{itemize}
+
+\subsection{Weighted Loss Functions}
+Implement competition-aligned training by:
+\begin{itemize}
+    \item Using weighted MSE during deep model training.
+    \item Developing differentiable approximations to the weighted skill score for end-to-end optimization.
+\end{itemize}
+
+\subsection{Ensemble Methods}
+Combine models using:
+\begin{itemize}
+    \item Per-series model selection based on validation performance.
+    \item Stacking with a meta-learner trained on validation predictions.
+    \item Bayesian model averaging weighted by per-series posterior probabilities.
+\end{itemize}
+
+\subsection{Global and Panel Models}
+Move beyond per-series training:
+\begin{itemize}
+    \item Train a single model across all series with entity embeddings (similar to N-BEATS or DeepAR).
+    \item Use hierarchical models that share parameters across related series while allowing series-specific adjustments.
+\end{itemize}
+
+\subsection{Advanced Architectures}
+Explore state-of-the-art time series models:
+\begin{itemize}
+    \item \textbf{Transformer models:} Self-attention can capture long-range dependencies without recurrence.
+    \item \textbf{N-BEATS:} Interpretable deep learning architecture designed for time series forecasting.
+    \item \textbf{Neural basis expansion:} Models that decompose forecasts into interpretable trend and seasonality components.
+\end{itemize}
+
+\section{Closing Remarks}
+
+This project demonstrates that rigorous financial time series forecasting requires a multi-faceted approach: thorough exploratory analysis, principled baseline establishment, and progressive model sophistication. While no single approach achieves dominant performance across the heterogeneous panel, the systematic methodology provides a solid foundation for further improvement through ensemble methods and feature-based modeling.
+
+The competition's design---with anonymized data, weighted evaluation, and strict temporal splitting---mirrors the challenges of real-world quantitative finance, where model robustness and out-of-sample generalization are paramount.

@@ -1,0 +1,107 @@
+\contentsline {section}{\numberline {1}Introduction}{7}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Background and Motivation}{7}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Problem Statement}{7}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Objectives}{8}{subsection.1.3}%
+\contentsline {section}{\numberline {2}Data Source}{9}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Origin of the dataset}{9}{subsection.2.1}%
+\contentsline {subsubsection}{\numberline {2.1.1}Panel Structure}{9}{subsubsection.2.1.1}%
+\contentsline {subsubsection}{\numberline {2.1.2}Anonymization}{9}{subsubsection.2.1.2}%
+\contentsline {subsection}{\numberline {2.2}Data Characteristics}{9}{subsection.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.1}Dimensionality}{10}{subsubsection.2.2.1}%
+\contentsline {subsubsection}{\numberline {2.2.2}Series Length Distribution}{10}{subsubsection.2.2.2}%
+\contentsline {subsection}{\numberline {2.3}Target Variable: \texttt {y\_target}}{10}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Weight Distribution}{10}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}Data Pre-processing}{11}{subsection.2.5}%
+\contentsline {subsection}{\numberline {2.6}Exploratory Analysis}{12}{subsection.2.6}%
+\contentsline {subsubsection}{\numberline {2.6.1}Global Distribution}{12}{subsubsection.2.6.1}%
+\contentsline {subsubsection}{\numberline {2.6.2}Per-Horizon Distribution}{13}{subsubsection.2.6.2}%
+\contentsline {subsection}{\numberline {2.7}Stationarity Analysis}{13}{subsection.2.7}%
+\contentsline {subsubsection}{\numberline {2.7.1}ADF Test on Levels}{13}{subsubsection.2.7.1}%
+\contentsline {subsubsection}{\numberline {2.7.2}ADF Test on First Differences}{13}{subsubsection.2.7.2}%
+\contentsline {subsection}{\numberline {2.8}Autocorrelation Structure}{14}{subsection.2.8}%
+\contentsline {subsubsection}{\numberline {2.8.1}ACF and PACF Analysis}{14}{subsubsection.2.8.1}%
+\contentsline {subsubsection}{\numberline {2.8.2}Implications for Model Order Selection}{14}{subsubsection.2.8.2}%
+\contentsline {subsection}{\numberline {2.9}Cross-Correlation Analysis}{15}{subsection.2.9}%
+\contentsline {subsection}{\numberline {2.10}Weight Concentration Analysis}{15}{subsection.2.10}%
+\contentsline {subsection}{\numberline {2.11}STL Decomposition}{15}{subsection.2.11}%
+\contentsline {subsubsection}{\numberline {2.11.1}Period Detection via ACF}{15}{subsubsection.2.11.1}%
+\contentsline {subsubsection}{\numberline {2.11.2}Decomposition Findings}{16}{subsubsection.2.11.2}%
+\contentsline {subsection}{\numberline {2.12}EDA Summary}{17}{subsection.2.12}%
+\contentsline {section}{\numberline {3}Methodology}{18}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Validation Approach \& Train-Test Split}{18}{subsection.3.1}%
+\contentsline {subsubsection}{\numberline {3.1.1}Adaptive Splitting for Short Series}{18}{subsubsection.3.1.1}%
+\contentsline {subsection}{\numberline {3.2}Evaluation Metric}{18}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}Metric Interpretation}{18}{subsubsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.3}Classical Model Implementations (AR, ARMA, ARIMA, SARIMA)}{19}{subsection.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.1}Family A: Baselines (on Levels)}{19}{subsubsection.3.3.1}%
+\contentsline {subsubsection}{\numberline {3.3.2}Family B: AR Family (First Differences)}{19}{subsubsection.3.3.2}%
+\contentsline {subsubsection}{\numberline {3.3.3}Family C: MA Family (First Differences)}{20}{subsubsection.3.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.4}Family D: ARMA Family (First Differences)}{20}{subsubsection.3.3.4}%
+\contentsline {subsubsection}{\numberline {3.3.5}Family E: ARIMA with Explicit $d$ Comparison}{20}{subsubsection.3.3.5}%
+\contentsline {subsubsection}{\numberline {3.3.6}Family F: SARIMA}{21}{subsubsection.3.3.6}%
+\contentsline {subsection}{\numberline {3.4}Evaluation Design}{21}{subsection.3.4}%
+\contentsline {subsubsection}{\numberline {3.4.1}Eligibility and Splitting}{21}{subsubsection.3.4.1}%
+\contentsline {subsubsection}{\numberline {3.4.2}Skip and Failure Handling}{21}{subsubsection.3.4.2}%
+\contentsline {subsubsection}{\numberline {3.4.3}Sample Run Results}{22}{subsubsection.3.4.3}%
+\contentsline {subsection}{\numberline {3.5}Deep Sequence Models (RNN, GRU, LSTM)}{22}{subsection.3.5}%
+\contentsline {subsubsection}{\numberline {3.5.1}Vanilla RNN}{22}{subsubsection.3.5.1}%
+\contentsline {subsubsection}{\numberline {3.5.2}GRU (Gated Recurrent Unit)}{22}{subsubsection.3.5.2}%
+\contentsline {subsubsection}{\numberline {3.5.3}LSTM (Long Short-Term Memory)}{23}{subsubsection.3.5.3}%
+\contentsline {subsection}{\numberline {3.6}Training Pipeline}{23}{subsection.3.6}%
+\contentsline {subsubsection}{\numberline {3.6.1}Data Preparation}{23}{subsubsection.3.6.1}%
+\contentsline {subsubsection}{\numberline {3.6.2}Adaptive Training Splits}{23}{subsubsection.3.6.2}%
+\contentsline {subsubsection}{\numberline {3.6.3}Recursive Forecasting}{24}{subsubsection.3.6.3}%
+\contentsline {subsubsection}{\numberline {3.6.4}Loss Function}{24}{subsubsection.3.6.4}%
+\contentsline {subsubsection}{\numberline {3.6.5}Hyperparameters}{25}{subsubsection.3.6.5}%
+\contentsline {subsubsection}{\numberline {3.6.6}ARIMAX and TCN}{25}{subsubsection.3.6.6}%
+\contentsline {subsection}{\numberline {3.7}Ablation Study \& Tuned Parameter Values}{25}{subsection.3.7}%
+\contentsline {subsection}{\numberline {3.8}Probabilistic Forecasting Models}{26}{subsection.3.8}%
+\contentsline {subsubsection}{\numberline {3.8.1}Recursive Forecasting}{26}{subsubsection.3.8.1}%
+\contentsline {subsubsection}{\numberline {3.8.2}Loss Function}{26}{subsubsection.3.8.2}%
+\contentsline {subsubsection}{\numberline {3.8.3}Hyperparameters}{27}{subsubsection.3.8.3}%
+\contentsline {subsection}{\numberline {3.9}Model Comparison}{27}{subsection.3.9}%
+\contentsline {subsubsection}{\numberline {3.9.1}Architectural Trade-offs}{27}{subsubsection.3.9.1}%
+\contentsline {subsubsection}{\numberline {3.9.2}Expected Performance Ranking}{27}{subsubsection.3.9.2}%
+\contentsline {subsection}{\numberline {3.10}Implementation Details}{27}{subsection.3.10}%
+\contentsline {subsubsection}{\numberline {3.10.1}Per-Series Training}{27}{subsubsection.3.10.1}%
+\contentsline {subsubsection}{\numberline {3.10.2}Status Tracking}{27}{subsubsection.3.10.2}%
+\contentsline {subsubsection}{\numberline {3.10.3}Leaderboard and Per-Series Winners}{28}{subsubsection.3.10.3}%
+\contentsline {subsection}{\numberline {3.11}Challenges and Considerations}{28}{subsection.3.11}%
+\contentsline {section}{\numberline {4}Results and Analysis}{29}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Cross-Methodology Comparison}{29}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Classical Model Performance Summary}{29}{subsection.4.2}%
+\contentsline {subsubsection}{\numberline {4.2.1}Baseline Performance}{29}{subsubsection.4.2.1}%
+\contentsline {subsubsection}{\numberline {4.2.2}Parametric Model Performance}{29}{subsubsection.4.2.2}%
+\contentsline {subsubsection}{\numberline {4.2.3}The Stationarity Validation}{30}{subsubsection.4.2.3}%
+\contentsline {subsection}{\numberline {4.3}Deep Learning Performance Summary}{31}{subsection.4.3}%
+\contentsline {section}{\numberline {5}Analysis of the Numerical Results}{33}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Classical Model Results}{33}{subsection.5.1}%
+\contentsline {subsubsection}{\numberline {5.1.1}Leaderboard Results}{33}{subsubsection.5.1.1}%
+\contentsline {subsubsection}{\numberline {5.1.2}The $d=0$ vs. $d=1$ Head-to-Head}{33}{subsubsection.5.1.2}%
+\contentsline {subsubsection}{\numberline {5.1.3}Per-Series Winner Analysis}{33}{subsubsection.5.1.3}%
+\contentsline {subsection}{\numberline {5.2}Deep Learning and Cross-Methodology Results}{33}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Cross-Methodology Comparison}{33}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Classical Model Performance Summary}{33}{subsection.5.4}%
+\contentsline {subsubsection}{\numberline {5.4.1}Baseline Performance}{33}{subsubsection.5.4.1}%
+\contentsline {subsubsection}{\numberline {5.4.2}Parametric Model Performance}{34}{subsubsection.5.4.2}%
+\contentsline {subsubsection}{\numberline {5.4.3}The Stationarity Validation}{35}{subsubsection.5.4.3}%
+\contentsline {subsection}{\numberline {5.5}Deep Learning Performance Summary}{35}{subsection.5.5}%
+\contentsline {subsection}{\numberline {5.6}Classical vs. Deep Learning}{36}{subsection.5.6}%
+\contentsline {subsection}{\numberline {5.7}Key Findings}{37}{subsection.5.7}%
+\contentsline {subsection}{\numberline {5.8}Error Analysis}{37}{subsection.5.8}%
+\contentsline {subsubsection}{\numberline {5.8.1}Common Failure Modes}{37}{subsubsection.5.8.1}%
+\contentsline {subsubsection}{\numberline {5.8.2}Skip and Failure Analysis}{37}{subsubsection.5.8.2}%
+\contentsline {subsection}{\numberline {5.9}Research Gap Identified}{38}{subsection.5.9}%
+\contentsline {section}{\numberline {6}Converting the Forecast into Actions}{39}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Signal Generation and Expected Returns}{39}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Risk-Adjusted Sizing (Kelly Criterion)}{39}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Portfolio Optimization}{39}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Execution and Slippage}{39}{subsection.6.4}%
+\contentsline {section}{\numberline {7}Future Work}{40}{section.7}%
+\contentsline {subsubsection}{\numberline {7.0.1}Feature-Based Models}{40}{subsubsection.7.0.1}%
+\contentsline {subsubsection}{\numberline {7.0.2}Weighted Loss Functions}{40}{subsubsection.7.0.2}%
+\contentsline {subsubsection}{\numberline {7.0.3}Ensemble Methods}{40}{subsubsection.7.0.3}%
+\contentsline {subsubsection}{\numberline {7.0.4}Global and Panel Models}{40}{subsubsection.7.0.4}%
+\contentsline {subsubsection}{\numberline {7.0.5}Advanced Architectures}{40}{subsubsection.7.0.5}%
+\contentsline {subsection}{\numberline {7.1}Closing Remarks}{41}{subsection.7.1}%
+\contentsline {section}{\numberline {8}References}{42}{section.8}%
