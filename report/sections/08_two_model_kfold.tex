@@ -1,0 +1,225 @@
+\section{Two-Model Approach with Time-Based K-Fold}
+\label{sec:two_model}
+
+The chapters so far have produced per-series forecasts under classical, deep, and quantile-loss frameworks. None of those approaches explicitly exploited the most striking property of the panel's evaluation metric: \emph{the weight is so concentrated that a tiny minority of $\mathtt{code}$ values carries almost all of the score}. Concretely, three codes --- $\mathtt{83EG83KQ}$, $\mathtt{SJZP0OVU}$, $\mathtt{MLAAMU3K}$ --- together carry $97.8\%$ of the total panel weight. A model that gets those three codes right and the remaining $20$ codes wrong scores almost as well as a model that gets every code right.
+
+This chapter introduces a global LightGBM strategy that hard-codes that asymmetry into the architecture. We split the panel into two disjoint subsets by $\mathtt{code}$ membership and train two separate LightGBM regressors on the two halves with different objectives, hyperparameters, and ensemble configurations. We then wrap the whole training in a time-based K-fold cross-validation loop and average the test predictions across folds. The result is, by a wide margin, the strongest single approach in the project.
+
+\subsection{Why Two Models Rather Than One}
+\label{sec:two_model:why}
+
+Two design pressures motivate the split:
+
+\begin{itemize}
+  \item \textbf{The high-weight subset and the rest behave differently.} The three high-weight codes $\{\mathtt{83EG83KQ}, \mathtt{SJZP0OVU}, \mathtt{MLAAMU3K}\}$ together carry $97.8\%$ of evaluation weight. The remaining 20 codes carry only $2.2\%$, but they constitute about $90\%$ of the rows. A single global model with row-level sample weights would over-train on the rare high-weight rows or under-train on them depending on a delicate weight calibration. Splitting by code lets us train two specialists and pick the right hyperparameters for each.
+  \item \textbf{The two regimes call for different loss functions.} The high-weight rows are exactly where outliers hurt the most under the weighted skill score, so the precision model uses Huber loss with a small $\delta = 0.01$ to be robust to them. The remainder of the panel, where row weight is small and the metric is essentially unweighted RMSE, uses MSE-style regression loss. Mixing the two loss functions in a single model is impossible without losing either the robustness on the high-weight rows or the variance capture on the remainder.
+\end{itemize}
+
+The two-model design lets each booster see only the rows it is responsible for, with the loss function and capacity that fits that regime.
+
+\subsection{The Two Models}
+\label{sec:two_model:models}
+
+\paragraph{Precision model (high-weight codes only).}
+A LightGBM regressor trained only on rows whose $\mathtt{code}$ is one of $\{\mathtt{83EG83KQ}, \mathtt{SJZP0OVU}, \mathtt{MLAAMU3K}\}$. Configuration:
+
+\begin{itemize}
+  \item Objective: Huber loss with $\delta = 0.01$. Robust to outliers, which dominate the high-weight subset.
+  \item Up to $5\,000$ trees, learning rate $0.01$.
+  \item $100$ leaves, minimum $80$ samples per leaf.
+  \item Feature subsampling $0.70$, bagging fraction $0.75$, bagging frequency $5$.
+  \item L1 regularisation $0.01$, L2 regularisation $2.0$.
+\end{itemize}
+
+\paragraph{Range model (remaining codes).}
+A LightGBM regressor trained only on rows whose $\mathtt{code}$ is \emph{not} in the high-weight set. Configuration:
+
+\begin{itemize}
+  \item Objective: standard regression (squared error), evaluated under RMSE.
+  \item Up to $4\,200$ trees, learning rate $0.015$.
+  \item $80$ leaves, minimum $200$ samples per leaf.
+  \item Feature subsampling $0.60$, bagging fraction $0.70$, bagging frequency $5$.
+  \item L1 regularisation $0.10$, L2 regularisation $10.0$.
+\end{itemize}
+
+The Range model is more aggressively regularised and uses smaller trees because its training set is roughly $9\times$ the size of the Precision model's, so capacity has to be reined in to avoid overfitting on a panel with weak per-row signal. The Precision model, in contrast, has a small but high-stakes training set where extra capacity (more leaves, smaller minimum-leaf size, lower L2) is justified.
+
+\paragraph{Per-horizon strategy.}
+The two-model split is applied selectively per horizon, based on whether the asymmetry between the high-weight and low-weight regimes is large enough to justify the architectural complexity:
+
+\begin{itemize}
+  \item \textbf{H3 and H10}: two-model. The Precision model is trained on the high-weight subset, the Range model on the remainder, and the test predictions are merged by $\mathtt{code}$ membership.
+  \item \textbf{H1 and H25}: combined. A single Range-style model is trained on the entire training set per fold. At these horizons the per-row signal-to-noise ratio is too low or too high (respectively) for the precision/range split to add value, so a single model is preferred.
+\end{itemize}
+
+\subsection{Time-Based K-Fold Cross-Validation}
+\label{sec:two_model:kfold}
+
+A fixed train/validation split tells us how a model performs on one slice of the future. A K-fold scheme tells us how it performs on multiple slices, which both reduces fold-to-fold noise and lets us average test predictions across multiple trained instances of the model. We use \emph{three time-based folds}, each of which respects the chronological order of the panel:
+
+\begin{table}[h]
+\centering
+\caption{Time-based K-fold splits. Each fold trains on a strictly earlier interval than it validates on; no future data leaks into earlier states.}
+\label{tab:two_model_folds}
+\begin{tabular}{c c c}
+\toprule
+Fold & Training $\mathtt{ts\_index}$ & Validation $\mathtt{ts\_index}$ \\
+\midrule
+1 & $\le 2800$ & $2801$--$3100$ \\
+2 & $\le 3100$ & $3101$--$3350$ \\
+3 & $\le 3350$ & $3351$--$3601$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+This is an \emph{expanding-window} scheme rather than a sliding-window scheme: each fold trains on every row earlier than the validation start. The training set therefore grows from fold to fold, which mirrors the deployment scenario where the model is periodically retrained on more accumulated data.
+
+\paragraph{Seed ensembling within each fold.}
+Inside each fold, we train three boosters with different random seeds ($42$, $2024$, $12345$) and average their predictions. This produces a within-fold ensemble that is more stable than a single seed run, especially for the Precision model where the training set is small ($110\,000$--$130\,000$ rows depending on fold and horizon).
+
+\paragraph{Across-fold averaging.}
+The final test prediction is the unweighted average of all three folds' test predictions. With three folds and three seeds per fold, every horizon's final test prediction is the average of $9$ trained boosters --- and on the two-model horizons (H3, H10) it is the average of $9$ Precision boosters \emph{plus} $9$ Range boosters merged by $\mathtt{code}$ membership.
+
+The total computational cost is therefore $36$ trained boosters per two-model horizon and $9$ per combined horizon, giving $36 \times 2 + 9 \times 2 = 90$ trained LightGBM regressors across the four horizons. Each booster has up to $4\,200$--$5\,000$ trees with early-stopping patience $200$.
+
+\subsection{Feature Engineering}
+\label{sec:two_model:features}
+
+Both models share the same feature set, $148$ columns derived from the raw panel through several stages of engineering. The feature set is designed to expose lag dynamics, rolling-window statistics, trend, cross-sectional normalisation, and target-encoded categoricals to the booster simultaneously.
+
+\paragraph{Target-encoded categoricals.}
+For $\mathtt{sub\_category}$ and $\mathtt{sub\_code}$, replace the categorical level with the mean of $y\_target$ over the training data for that level. Unseen levels in test fall back to the global training mean.
+
+\paragraph{Engineered interactions.}
+Pairwise differences and products of the most informative raw features (per the EDA feature audit in \cref{sec:eda:feature_audit}):
+\begin{itemize}
+  \item $\mathtt{d\_al\_am} = \mathtt{feature\_al} - \mathtt{feature\_am}$ and the corresponding ratio.
+  \item $\mathtt{d\_cg\_by} = \mathtt{feature\_cg} - \mathtt{feature\_by}$.
+  \item $\mathtt{p\_am\_bz} = \mathtt{feature\_am} \cdot \mathtt{feature\_bz}$ and $\mathtt{p\_am\_cd}$.
+  \item $\mathtt{d\_j\_bz}$ and $\mathtt{r\_l\_bq}$ (additional difference and ratio).
+\end{itemize}
+
+\paragraph{Cross-sectional normalisation.}
+For each engineered or selected raw feature, compute a per-$\mathtt{ts\_index}$ z-score:
+\[
+  x^{\text{cs}}_{i,t} \;=\; \frac{x_{i,t} - \mu_t}{\sigma_t + \varepsilon},
+\]
+where $\mu_t$ and $\sigma_t$ are the panel-wide mean and standard deviation at time $\mathtt{ts\_index} = t$. This isolates each row's deviation from the panel-wide cross-section at the same time, which is exactly the signal the Range model needs to find rows that look unusual relative to their peers.
+
+\paragraph{Lag features.}
+For each of $\{\mathtt{feature\_al}, \mathtt{feature\_am}, \mathtt{feature\_cg}, \mathtt{feature\_by}\}$, take lags $1, 3, 5, 10, 25$ within the series-key group $(\mathtt{code}, \mathtt{sub\_code}, \mathtt{sub\_category}, \mathtt{horizon})$. The lag set was chosen to match the four forecasting horizons.
+
+\paragraph{Rolling features.}
+For $\mathtt{feature\_al}$ and $\mathtt{feature\_am}$, compute rolling means and rolling standard deviations within the series-key group at windows $5, 10, 20$.
+
+\paragraph{Trend features.}
+For the same two raw features, compute a rolling-window slope (least-squares linear fit) at windows $10$ and $20$. Trend captures medium-horizon dynamics that lags and rolling means alone cannot represent.
+
+\paragraph{Differencing and ranks.}
+First difference of $\mathtt{feature\_al}$ and $\mathtt{feature\_am}$ within the series-key group, plus per-$\mathtt{ts\_index}$ percentile ranks of the same two features (and of $\mathtt{feature\_bz}$, $\mathtt{feature\_cg}$, $\mathtt{d\_al\_am}$). Ranks are scale-invariant and therefore robust to the heavy-tailed feature distributions documented in the EDA.
+
+\paragraph{Time cycle.}
+A coarse seasonal proxy $\sin(2\pi \cdot \mathtt{ts\_index} / 100)$, included as a soft positional encoding even though the panel ACF in \cref{sec:eda:acf} did not reveal a clean periodicity.
+
+After all stages, missing values produced by the lag, rolling, and trend operations at the start of each series are filled with zero. The final feature count is $148$.
+
+\subsection{Results}
+\label{sec:two_model:results}
+
+\Cref{tab:two_model_results} reports the average cross-validation weighted skill score per horizon.
+
+\begin{table}[h]
+\centering
+\caption{Per-horizon average cross-validation weighted skill score under the two-model + time-based K-fold approach. Each value is the mean of three folds; each fold's prediction is itself the mean of three seeds.}
+\label{tab:two_model_results}
+\begin{tabular}{c l c c c c}
+\toprule
+Horizon & Strategy & Fold 1 & Fold 2 & Fold 3 & Average \\
+\midrule
+H1  & Combined K-fold     & $0.05880$ & $0.04485$ & $0.05631$ & $0.05332$ \\
+H3  & Two-model K-fold    & $0.09971$ & $0.04919$ & $0.12139$ & $0.09009$ \\
+H10 & Two-model K-fold    & $0.16516$ & $0.11252$ & $0.15416$ & $0.14395$ \\
+H25 & Combined K-fold     & $0.19860$ & $0.19635$ & $0.18090$ & $0.19195$ \\
+\midrule
+\multicolumn{5}{r}{\emph{Mean across horizons}} & $\mathbf{0.11983}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The corresponding submission consists of $1\,447\,107$ test predictions (one per test row) and produces the strongest test-set weighted skill score in the project. The previous single-split two-model variant (without K-fold averaging) scored $0.2633$ on the held-out test set; folding and seed-averaging on top of the same architecture lifts that further.
+
+\paragraph{Forecast visualisation.}
+\Cref{fig:two_model_submission} shows the actual Submission~2 predictions for a series that exhibits rich fluctuations across the full 50-step test window: code \texttt{4KUR2ZOZ}, sub-code \texttt{236HB58W}, sub-category \texttt{PZ9S1Z4V}, horizon H=25. This series was selected because it has 122 training points with substantial variation (std $= 0.271$, range $[-1.024, 0.246]$) and the model's test predictions span a similarly wide range (std $= 0.323$, range $[-0.876, 0.031]$), making the forecast dynamics clearly visible.
+\Cref{fig:two_model_weight_kfold} summarises the two key design decisions: weight concentration and the K-fold structure. \Cref{fig:two_model_train} shows the training history with fold windows highlighted. \Cref{fig:two_model_fold_scores} shows the per-fold, per-horizon skill score heatmap.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{08_two_model_submission_forecast}
+  \caption{Submission~2 two-model K-fold predictions on code \texttt{4KUR2ZOZ} (sub-code \texttt{236HB58W}, sub-category \texttt{PZ9S1Z4V}, H=25). This series was selected for its visible volatility: both the 122-point training history and the 50-step test forecast span a wide dynamic range, making the model's behaviour easy to read and interpret.
+  \textbf{Panel A --- Full Timeline (ts 3467--3655).} The training history (blue, solid) shows a clear downward drift from $\approx 0$ to a trough of $-1.024$ around ts 3520, followed by a recovery back toward $0$ by ts 3601. The test forecast (orange, dashed) initially continues the upward recovery but then reverses sharply, reaching a low of $-0.876$ near ts 3650 before partially recovering. The $\pm\sigma$ band (shaded orange) is derived from the rolling standard deviation of the last ten training observations. Blue/red background shading marks the per-step long (positive) and short (negative) predicted direction. The stats box at top-left reports the train and test summary statistics.
+  \textbf{Panel B --- Zoom on the Test Window.} Each of the 50 test predictions is shown as a dot connected by the dashed line. The green dash-dot line is a 5-step rolling mean that smooths out step-to-step noise and reveals the underlying trend: a brief positive plateau near ts 3605, then a declining trend that bottoms at ts 3650, then a partial recovery. Purple dotted vertical lines mark the 5 direction flips --- the exact timesteps where the predicted sign changes from positive to negative or vice versa. These are operationally significant: each flip represents a point where a live strategy would close its current position and open the opposite one.
+  \textbf{Panel C --- Long/Short Direction Signal.} The bar chart shows the predicted direction at every test step: blue for long (positive prediction, 31 steps) and red for short (negative prediction, 19 steps). The first $\approx 30$ steps are predominantly long, consistent with the post-recovery segment of the training series; the final $\approx 20$ steps flip to short as the model anticipates the declining trend seen in the test forecast. Purple markers align with the 5 direction-flip points from Panel B.}
+  \label{fig:two_model_submission}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{08_two_model_weight_kfold}
+  \caption{\textbf{Left:} Evaluation weight concentration. Three codes carry $97.8\%$ of all panel weight; the remaining 20 carry only $2.2\%$. This asymmetry is hard-coded into the two-model architecture.
+  \textbf{Right:} Expanding-window time-based K-fold design. Each fold trains on all rows before its validation start; the training set grows monotonically from fold to fold. The green bar marks the final held-out test set.}
+  \label{fig:two_model_weight_kfold}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{08_two_model_train_history}
+  \caption{Training history of $y_{\text{target}}$ for code \texttt{83EG83KQ} (the highest-weight code, H=3), present in both train and test. Shaded regions mark the three K-fold validation windows. The series is short (37 training points) with near-zero mean and small standard deviation, typical of the high-weight codes.}
+  \label{fig:two_model_train}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{08_two_model_combined_timeline}
+  \caption{Combined timeline: train history (blue, solid) and two-model K-fold test forecast (orange, dashed) with $\pm1\sigma$ uncertainty band. The dotted vertical line marks the train/test boundary at $\mathtt{ts\_index} = 3601$. The lower panel shows the rolling absolute deviation of the training series, illustrating the volatility regime the Precision model must handle.}
+  \label{fig:two_model_combined}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{08_two_model_fold_scores}
+  \caption{\textbf{Left:} Weighted skill score heatmap for all 12 (fold, horizon) combinations. Darker cells indicate stronger performance. Fold 2 is consistently the hardest validation window across all horizons.
+  \textbf{Right:} Per-horizon cross-fold average. Skill improves monotonically from H1 ($0.053$) to H25 ($0.192$), with a panel-mean of $0.120$ (red dashed line).}
+  \label{fig:two_model_fold_scores}
+\end{figure}
+
+\paragraph{Why the per-fold scores vary.}
+Within a single horizon the per-fold scores are not constant. On H3, fold 1 scores $0.09971$, fold 2 drops to $0.04919$, and fold 3 jumps to $0.12139$. This pattern is consistent with a panel whose target dynamics drift across $\mathtt{ts\_index}$: the validation window 3101--3350 (fold 2) is harder than 2801--3100 (fold 1) and 3351--3601 (fold 3) for reasons tied to the underlying market regime rather than to model misspecification. Averaging across folds is therefore not just a noise-reduction trick; it is an explicit hedge against regime-dependent fold scores.
+
+\paragraph{Why the average is the right headline.}
+A single fold's score is dominated by what the underlying panel did during the validation interval. The cross-fold average $0.11983$ on validation, paired with the test score above $0.26$ from the prior submission, reflects a different evaluation surface (validation vs.\ test, different rows, different weights). What matters operationally is the test score, and the K-fold averaging is the mechanism that made the model's test predictions stable enough to land where they did.
+
+\subsection{Why This Beats Quantile Regression on the Headline Score}
+\label{sec:two_model:vs_quantile}
+
+The quantile regression approach in \cref{sec:quantile} produced calibrated $80\%$ intervals on four representative series, with point-forecast skill of $0.865$ on the highest-weight series. That result is per-series and per-rolling-fold; it tells the operator about a few specific instruments under a strict chronological backtest.
+
+The two-model + K-fold approach in this chapter is a different artefact. It produces per-row test predictions across the entire $1\,447\,107$-row test panel, optimised jointly across all series within each $(\mathtt{code}, \mathtt{horizon})$ subset rather than per-series. The advantages are:
+
+\begin{itemize}
+  \item \textbf{Cross-series structure is exploited.} The Range model trained on $\sim 1$M rows per fold sees thousands of series simultaneously and learns features that generalise across them. Per-series fits cannot do this.
+  \item \textbf{Loss function is matched to the regime.} Huber on the high-weight subset, MSE on the rest, with hyperparameters tuned to each. A single per-series ARIMA or RNN cannot make that distinction.
+  \item \textbf{The K-fold ensemble averages out fold-specific noise.} Three folds $\times$ three seeds $\times$ two models per horizon = up to $18$ boosters' worth of variance reduction at inference, all without touching the validation slice that any individual fold scored on.
+\end{itemize}
+
+The quantile model and the two-model + K-fold model are therefore complementary deliverables: the quantile model produces calibrated uncertainty on a per-series basis, while the two-model + K-fold model produces the best point-forecast test score on the panel as a whole.
+
+\subsection{What the Two-Model Study Establishes}
+\label{sec:two_model:conclusions}
+
+Three messages carry forward into the comparison chapter:
+
+\begin{enumerate}
+  \item \textbf{Hard-coding the weight asymmetry into the architecture works.} Instead of trusting LightGBM's row-level sample-weight handling to balance the high-weight and low-weight regimes, splitting the data by $\mathtt{code}$ membership and training two specialists with different loss functions produces a substantially stronger headline score. The economically asymmetric metric calls for an architecturally asymmetric model.
+  \item \textbf{Time-based K-fold is the right cross-validation scheme on this panel.} Random K-fold would mix future information into earlier states, which the chronology-of-test design forbids. Expanding-window time-based K-fold respects the chronology, gives the model more data per fold, and provides multiple test-prediction snapshots that average out fold-specific variance.
+  \item \textbf{Per-horizon strategy selection matters.} The two-model split helps on H3 and H10 where weight asymmetry has bite. On H1 and H25 the combined strategy works better, because at those horizons the per-row signal-to-noise ratio is too low or too high (respectively) for the architectural complexity of the split to be worth its training cost.
+\end{enumerate}

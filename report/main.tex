@@ -1,36 +1,31 @@
-\documentclass[11pt,a4paper]{article}
+\documentclass[11pt]{article}
 
-% Packages
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{lmodern}
-\usepackage[margin=1in]{geometry}
+% --- Geometry: ~6.5 inch text width matches matplotlib defaults in cf.viz ---
+\usepackage[a4paper, margin=1in]{geometry}
+
+% --- Math, graphics, tables ---
+\usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{graphicx}
-\usepackage{amsmath,amssymb,amsthm}
 \usepackage{booktabs}
-\usepackage{longtable}
-\usepackage{hyperref}
-\usepackage[noabbrev,capitalise]{cleveref}
-\usepackage{microtype}
-\usepackage{xcolor}
-\usepackage{listings}
+\usepackage{array}
+\usepackage{tabularx}
 \usepackage{float}
 \usepackage{caption}
 \usepackage{subcaption}
-\usepackage{enumitem}
-\usepackage{fancyhdr}
-\usepackage{setspace}
-\usepackage{titlesec}
-\usepackage{tocloft}
-\usepackage{algorithm}
-\usepackage{algpseudocode}
-\usepackage{multirow}
-\usepackage{array}
-\usepackage{tabularx}
+\usepackage{microtype}
+
+% --- Cross references ---
+\usepackage[hidelinks]{hyperref}
+\usepackage[noabbrev,capitalise]{cleveref}
+
+% --- Figures live in report/figures/ ---
+\graphicspath{{figures/}}
 
 % --- Section formatting: prefix top-level headings with "Section",
 %     keep subsection numbering as 1.1 / 1.2 / etc., start every
 %     top-level section on a fresh page. ---
+\usepackage{titlesec}
 \titleformat{\section}[hang]
   {\normalfont\Large\bfseries}{Section \thesection.}{0.6em}{}
 \titlespacing*{\section}{0pt}{0pt}{12pt}
@@ -40,79 +35,59 @@
 \let\oldsection\section
 \renewcommand{\section}{\clearpage\oldsection}
 
-\onehalfspacing
-
-\hypersetup{
-    colorlinks=true,
-    linkcolor=blue!70!black,
-    citecolor=green!50!black,
-    urlcolor=blue!60!black
-}
-
-\lstset{
-    basicstyle=\ttfamily\small,
-    breaklines=true,
-    frame=single,
-    backgroundcolor=\color{gray!10},
-    keywordstyle=\color{blue},
-    commentstyle=\color{green!60!black},
-    stringstyle=\color{red!70!black},
-    numbers=left,
-    numberstyle=\tiny\color{gray},
-    language=Python
-}
-
-\pagestyle{fancy}
-\fancyhf{}
-\fancyhead[L]{\leftmark}
-\fancyhead[R]{Hedge Fund Time Series Forecasting}
-\fancyfoot[C]{\thepage}
-
 \begin{document}
 
 \begin{titlepage}
     \centering
     \vspace*{2cm}
-    
-    {\Huge \textbf{Hedge Fund --- Time Series Forecasting}}\\[1cm]
-    
-    {\Large \textbf{Course Name:} Applied Forecasting Algorithms}\\[2cm]
-    
-    {\Large \textbf{Group Members:}}\\[0.5cm]
-    Kaushal Nandaniya (Roll No: [Your Roll No])\\[0.2cm]
-    [Member 2 Name] (Roll No: [Roll No])\\[0.2cm]
-    [Member 3 Name] (Roll No: [Roll No])\\[2cm]
-    
-    {\Large \textbf{Instructor Name:} [Instructor Name]}\\[2cm]
-    
-    {\Large \textbf{Institution Name:} [Institution Name]}\\[2cm]
-    
-    {\Large \textbf{Submission Date:} \today}
-    
+
+    {\Huge \textbf{Hedge Fund\\
+    Panel Time Series Forecasting}}\\[1cm]
+
+    {\Large \textbf{Course Name:} Applied Forecasting Methods}\\[2cm]
+
+    {\Large \textbf{Group-8 Members:}}\\[0.5cm]
+    Kaushal Nandaniya (202303036)\\[0.2cm]
+    Jeetrajsinh Gohil (202303017)\\[0.2cm]
+    Dhyey Patel (202301415)\\[0.2cm]
+    Manthan Gajera (202301488)\\[2cm]
+
+    {\Large \textbf{Instructor Name:} Prof. Pritam Anand}\\[2cm]
+
+    {\Large \textbf{Institution Name:} Dhirubhai Ambani Institute of Information and Communication Technology}\\[2cm]
+
+    {\Large \textbf{Github Repo:} \href{https://github.com/kaushalnandaniya/HedgeFund_TimeSeriesForcasting}{GitHub}}\\[2cm]
+
     \vfill
 \end{titlepage}
 
 \begin{abstract}
-\noindent \textbf{Summary:} This report presents a comprehensive approach to forecasting anonymized hedge-fund panel time series, focusing on a dataset of 5.3 million observations across 36,923 unique series with 86 features. \\
-\textbf{Problem Statement:} The objective is to accurately predict future returns while strictly avoiding look-ahead bias, evaluated under a highly concentrated weighted skill score. \\
-\textbf{Methods Used:} A rigorous pipeline combining classical statistical models (AR, MA, ARMA, ARIMA, SARIMA) and deep sequence learning (RNN, GRU, LSTM) is implemented. All modeling respects critical EDA findings, particularly 100\% stationarity after first differencing. \\
-\textbf{Key Findings:} Results demonstrate that simple baselines and low-order classical models perform surprisingly well on stable series, while deep sequence models (LSTM/GRU) and gradient-boosted trees offer superior performance on volatile and high-weight series. Extreme weight concentration (top 1\% of rows contribute 65\% of the score) dictates that models must be optimized using weight-aware objective functions.
+This project addresses a large-scale panel time-series forecasting problem derived from anonymised hedge-fund data, where the objective is to predict future values of a target variable across multiple heterogeneous series under a weighted evaluation metric. The problem is challenging due to heavy-tailed distributions, extreme weight concentration, non-stationarity, and varying lengths of historical data across series.
+\\
+\\
+The study adopts a diagnostic-driven approach, beginning with extensive exploratory data analysis to understand missingness patterns, distributional properties, and weight imbalance. Stationarity is assessed using ADF and KPSS tests, followed by first differencing to stabilise the series. Classical forecasting models , smoothing, AR, MA, ARMA, and ARIMA , are applied to four representative series selected to span the panel's stress dimensions of length, volatility, and weight. In parallel, deep recurrent models (RNN, GRU, LSTM) are fit on the same series under adaptive chronological splits, and a global LightGBM model is fit under quantile loss with calibrated $80\%$ prediction intervals selected on a per-series basis through a rolling 70/20/20 chronological backtest.
+\\
+\\
+The results demonstrate that no single model universally outperforms others across all series. Simple smoothing methods dominate on stable low-variance series; differenced ARIMA and short-lag AR dominate on the volatile and high-weight series under classical fitting; recurrent models add a further lift on those same informative series; and the LightGBM quantile method produces the strongest single point forecast on the highest-weight series ($\text{skill} = 0.865$) while delivering empirically calibrated intervals between $0.762$ and $0.862$ wPICP across all four representative series. The findings highlight the importance of aligning model choice with data characteristics and evaluation metrics.
+\\
+\\
+Overall, this work emphasises that effective hedge-fund forecasting requires a combination of statistical diagnostics, model adaptability, and careful consideration of panel heterogeneity, and that the deployable artefact is a calibrated interval rather than a single point estimate.
 \end{abstract}
 
+\clearpage
 \tableofcontents
-\newpage
 
-\listoffigures
-\listoftables
-\newpage
-
-% Include chapters
-\input{chapters/01_introduction}
-\input{chapters/02_data_source}
-\input{chapters/03_methodology}
-\input{chapters/04_results}
-\input{chapters/05_actions}
-\input{chapters/06_future_work}
-\input{chapters/07_references}
+\input{sections/01_problem_statement}
+\input{sections/02_targets_and_series}
+\input{sections/03_skill_score}
+\input{sections/04_eda}
+\input{sections/05_classical}
+\input{sections/06_deep_sequence_models}
+\input{sections/07_global_lgbm}
+\input{sections/08_two_model_kfold}
+\input{sections/09_analysis_numerical_results}
+\input{sections/10_actions}
+\input{sections/11_future_work}
+\input{sections/12_references}
 
 \end{document}

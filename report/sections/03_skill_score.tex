@@ -1,0 +1,41 @@
+\section{The Weighted Skill Score}
+\label{sec:skill}
+
+The competition is decided by a single scalar: the \emph{weighted skill score}. Because the rest of the project uses this metric for every model comparison, ensemble weight, and bootstrap interval, it deserves a dedicated section. We state the formula, give the intuitive reading, and note the two practical consequences that carry through every modelling decision.
+
+\subsection{Definition}
+
+Given truths $y_i$, predictions $\hat y_i$, and non-negative weights $w_i$ for $i = 1, \ldots, n$, the weighted skill score is
+\begin{equation}
+\label{eq:skill}
+  \text{score}(y, \hat y; w) \;=\; \sqrt{\,1 \;-\; \mathrm{clip}_{[0,1]}\!\left( \dfrac{\sum_{i} w_i\,(y_i - \hat y_i)^2}{\sum_{i} w_i\,y_i^2} \right)\,}
+\end{equation}
+where $\mathrm{clip}_{[0,1]}(x) = \min(\max(x,0),1)$. The function returns 1 for a perfect prediction and 0 when the prediction is no better than the all-zero forecast.
+
+\subsection{Intuitive meaning}
+
+Strip away the symbols and the score answers a single question: \emph{how much of the weighted target ``energy'' is left unexplained by the prediction?}
+
+The fraction inside the square root, $\sum w_i (y_i - \hat y_i)^2 \,/\, \sum w_i y_i^2$, is exactly that --- the unexplained share of weighted squared truth. It is zero when the prediction is perfect and one when the prediction is identically zero. The clip caps it at one so that no model can score worse than the trivial all-zero forecast, and the outer square root puts the result on a familiar correlation-like scale where 1 is excellent, 0 is no skill, and intermediate values read roughly the way a Pearson correlation of the same magnitude reads.
+
+A few useful reference points:
+
+\begin{itemize}
+  \item \textbf{Skill $= 1$} --- perfect predictions on every weighted row.
+  \item \textbf{Skill $= 0$} --- the model is no better than predicting zero. This is the natural ``did you learn anything'' threshold.
+  \item \textbf{Skill $\approx 0.5$} --- roughly three quarters of the weighted target energy is still unexplained. In feel, this is comparable to a Pearson correlation of $0.5$: a real but modest signal.
+  \item \textbf{Skill $\approx 0.95$} --- only ten percent of energy unexplained. Strong, near the practical ceiling for a competitive entry.
+\end{itemize}
+
+The reason the metric is built around \emph{weighted} energy rather than raw error is that hedge-fund-style panels have wildly different target scales across instruments. Dividing by $\sum w_i y_i^2$ neutralises that scale: a 1\% relative error on a low-volatility row and a 1\% relative error on a high-volatility row contribute proportionally to the score. The weights $w_i$ themselves let the organiser encode importance and in our panel those weights are extraordinarily concentrated, so the score is effectively decided by how well the model fits a small set of high-weight rows.
+
+\subsection{Practical consequences for this project}
+
+\Cref{eq:skill} is implemented once in the shared utility \texttt{cf.metrics.weighted\_skill\_score} and used by every later notebook for both model selection and final scoring. The function \texttt{cf.metrics.bootstrap\_skill} returns 95\% confidence intervals by row resampling; we report bootstrap intervals alongside every leaderboard number to avoid declaring winners that are within sampling noise of each other.
+
+Two structural observations carry through to every subsequent modelling decision:
+
+\begin{itemize}
+  \item \textbf{High-weight rows decide the leaderboard.} Because approximately 64\% of weight sits in the top 1\% of rows (\cref{sec:weight_dist}), the score is essentially a measure of how well the model predicts those few rows. We must therefore train with sample weights, not just evaluate with them.
+  \item \textbf{Plain RMSE will lie.} A model that improves average behaviour at the cost of a small degradation on a high-weight row can lose to a simpler model. We never report unweighted RMSE as a primary headline number.
+\end{itemize}

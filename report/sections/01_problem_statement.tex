@@ -1,0 +1,61 @@
+\section{Introduction}
+\label{sec:problem}
+
+\subsection{Background and Motivation}
+\label{sec:intro:background}
+
+Hedge funds rely heavily on quantitative forecasting models to anticipate the behaviour of large numbers of financial instruments simultaneously. These predictions directly influence portfolio allocation, risk management, and trading strategies, making forecasting accuracy not merely a statistical objective but a driver of real financial outcomes. In modern quantitative finance, even marginal improvements in predictive performance can translate into substantial economic gains due to leverage, compounding, and high-frequency decision-making.
+
+The forecasting problem at this scale has three properties that make it a useful subject for an applied forecasting study: panels of thousands of related but heterogeneous series, evaluation metrics that weight rows extremely unevenly because some instruments have far larger economic significance than others, and series of widely varying lengths and statistical character. A model that performs well on average behaviour but degrades on the small set of high-weight rows can be objectively worse than a simpler baseline under the official metric, even if its mean error is lower. This reflects a critical real-world constraint: financial decision systems must prioritize economically significant errors over purely statistical averages.
+
+Beyond model performance, hedge fund forecasting plays a central role in broader financial stability and efficiency. Accurate forecasts contribute to improved liquidity, better price discovery, and more efficient capital allocation across markets. Conversely, poor forecasting can lead to mispricing, excessive risk exposure, and systemic vulnerabilities, especially when models are deployed at scale. As a result, understanding when and why models succeed or fail is as important as achieving high predictive accuracy.
+
+Three properties make the dataset used in this project a particularly clean test bed for methodological work:
+
+\begin{itemize}
+  \item \emph{Anonymisation forces statistical reasoning.} Without semantic feature names we cannot fall back on domain priors; every claim must be supported by a measurable property of the data. This encourages a rigorous, data-driven approach that generalizes beyond specific financial instruments.
+  
+  \item \emph{The weighting scheme rewards precision on rare rows.} A model that improves average behaviour while degrading on the high-weight rows can lose to a simpler model. This is a mechanically different objective from standard regression and mirrors real-world portfolio constraints where large positions dominate risk and return.
+  
+  \item \emph{The four horizons are coupled.} As we show in \cref{sec:cumulation}, the targets at $H \in \{3,10,25\}$ are well approximated by rolling cumulative sums of the $H=1$ process. This latent structure introduces interdependence across forecasting tasks and enables more efficient modeling strategies.
+\end{itemize}
+
+In addition to these structural properties, the dataset presents several modeling challenges typical of real financial systems. The target distribution is heavy-tailed, meaning that rare extreme events can dominate loss functions and destabilize model training. The strong concentration of weights further amplifies this issue, requiring models to remain robust under highly skewed importance sampling. Moreover, many series have limited historical data, making it difficult to apply high-capacity models without overfitting.
+
+Taken together, these characteristics make hedge fund forecasting a compelling and realistic setting for studying the interaction between data properties, evaluation metrics, and model design. The objective is not only to identify high-performing models, but to understand the conditions under which different modeling approaches succeed or fail.
+
+\subsection{Problem Statement}
+\label{sec:intro:problem}
+
+We work with a publicly released Kaggle competition dataset titled \href{https://www.kaggle.com/competitions/ts-forecasting}{\emph{Hedge fund -- time-series forecasting}}. The competition sponsor releases a panel of anonymised numerical series with engineered features and asks competitors to forecast a continuous target at four lookahead horizons. Identifiers, feature names, and the underlying financial domain are stripped. What remains is a mathematically well-defined supervised forecasting problem with a non-trivial weighting scheme.
+
+Each row of the panel is identified by the tuple
+\[
+(\mathtt{code},\ \mathtt{sub\_code},\ \mathtt{sub\_category},\ \mathtt{horizon},\ \mathtt{ts\_index})
+\]
+and carries a continuous target $y_{\text{target}}$, a non-negative competition weight, and 86 anonymised numerical covariates of the form $\mathtt{feature\_a}, \mathtt{feature\_b}, \ldots$ The integer time index $\mathtt{ts\_index}$ runs over the contiguous range 1--3601 in the public training partition and 3602--4376 in the held-out test partition. The training panel contains 5{,}337{,}414 rows and the test panel contains 1{,}447{,}107 rows. The four forecast horizons are $H \in \{1,\ 3,\ 10,\ 25\}$, and there are 36{,}923 distinct series in train under the 4-tuple key.
+
+The dataset combines three well-known difficulties that make naive baselines a bad guide:
+
+\begin{enumerate}
+  \item \textbf{Heavy-tailed target.} The target distribution is centred near zero with an interquartile range of approximately $\pm 0.05$, but the full range runs from roughly $-2200$ to $+2300$. The 1\% and 99\% percentiles are at approximately $\pm 82$. Plain mean-squared losses are extremely sensitive to a small number of tail rows.
+  \item \textbf{Concentrated evaluation weight.} The competition metric is sample-weighted, and the weights are extraordinarily skewed: the median weight is approximately $1.7 \times 10^{3}$ while the maximum is $1.4 \times 10^{13}$. The top one percent of rows by weight carry approximately 64\% of all evaluation mass, and the top five percent carry approximately 92\%. Any unweighted analysis can recommend the wrong model.
+  \item \textbf{Limited per-series history at long horizons.} Although the panel is large in aggregate, only about 5\% of individual series cleanly cross the validation cutoff at $\mathtt{ts\_index} = 2880$. Some series have as few as seven training points before the cutoff, which makes per-series classical fitting infeasible for many model families.
+\end{enumerate}
+
+\subsection{Objectives}
+\label{sec:intro:objectives}
+
+This project pursues four explicit objectives:
+
+\begin{enumerate}
+  \item \textbf{Establish diagnostic baselines.} Run the full classical diagnostic chain (stationarity, differencing, autocorrelation, decomposition) and report what it implies for modelling choices.
+  \item \textbf{Test classical and deep families on a fair, statistically calibrated protocol.} Replace hand-picked grids with information-criterion-based order selection, replace point estimates with bootstrap confidence intervals, and use chronologically honest splits.
+  \item \textbf{Build a global, panel-aware gradient-boosted model that uses the 86 features and respects the per-horizon target scale.} Show that the H3 weight-dominance finding from the EDA is empirically actionable.
+  \item \textbf{Exploit the multi-horizon coupling.} Test whether fitting only the H=1 process and aggregating to H3, H10, H25 by rolling sum can recover or surpass per-horizon-independent fits.
+\end{enumerate}
+
+\subsection{Scope of this report}
+\label{sec:intro:scope}
+
+The remainder of this report covers the diagnostic phase, the methodology, and the empirical results. \Cref{sec:targets} formalises the data, panel keys, and chronological constraint. \Cref{sec:skill} develops the official competition metric. \Cref{sec:eda} carries out the full exploratory analysis, including three originality findings about the multi-horizon structure of the panel. \Cref{sec:classical}--\cref{sec:lgbm} cover classical baselines, deep sequence models, and the global gradient-boosted approach. The probabilistic forecasting work, multi-horizon aggregation experiment, ensembles, comparative analysis, conversion into actions, and future work are added in later chapters as those notebooks land.

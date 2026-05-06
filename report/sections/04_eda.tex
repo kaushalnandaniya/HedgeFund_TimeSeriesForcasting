@@ -1,0 +1,353 @@
+\section{Data Pre-processing and Exploratory Analysis}
+\label{sec:eda}
+
+This section reports the exploratory analysis of the panel before any modelling. The aim is twofold. First, to establish the basic statistical shape of the data so that later modelling choices can be motivated rather than guessed. Second, to surface three structural findings about the panel --- multi-horizon coupling, the cumulation hypothesis, and per-horizon weight dominance --- that the midway report did not document but that materially change the modelling space. All numerical results below are produced by notebook \texttt{00\_data\_structure.ipynb} and the corresponding figures are saved as both PNG and PDF assets.
+
+\subsection{Schema, panel scale, and train--test comparability}
+\label{sec:eda:schema}
+
+The training panel contains 5{,}337{,}414 rows, organised by 23 distinct \texttt{code} values, 180 distinct \texttt{sub\_code} values, and 5 \texttt{sub\_category} values across 4 horizons. The integer time index $\mathtt{ts\_index}$ runs over the contiguous range $[1, 3601]$. The test partition continues from $\mathtt{ts\_index} = 3602$ to 4376 with 1{,}447{,}107 rows, so test is a strict temporal suffix of train. Treating the 4-tuple $(\mathtt{code},\mathtt{sub\_code},\mathtt{sub\_category},\mathtt{horizon})$ as the natural series identifier yields 36{,}923 distinct series.
+
+The only columns present in train but not in test are $y_{\text{target}}$ and $\mathtt{weight}$, as expected. Every category level seen in test exists in train, so there is no cold-start schema issue. The sub-code support narrows from 180 in train to 47 in test --- a coverage shift rather than a schema mismatch.
+
+\subsection{Missing values}
+\label{sec:eda:missing}
+
+Missingness is computed on a 500{,}000-row stratified sample to keep memory in check. Of the 86 anonymised features, 48 contain at least one missing value, but the maximum missing rate across all columns is approximately 12.5\%. \Cref{fig:missingness} shows the top fifteen offenders.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{00_missingness_top15}
+\caption{Top fifteen features by missingness, on a 500{,}000-row stratified sample of train. The maximum missing rate is approximately 12.5\%, low enough that median imputation inside a fold is sufficient and there is no need to drop columns or use complex imputers.}
+\label{fig:missingness}
+\end{figure}
+
+\paragraph{Reading.} Missing rates are bounded; within-fold median imputation suffices. No separate imputation strategy is developed.
+
+\subsection{Target distribution}
+\label{sec:eda:target}
+
+The target $y_{\text{target}}$ is centred very close to zero (median $-0.0006$, IQR $\pm 0.05$), but has extremely heavy tails. The 1\% and 99\% quantiles sit at approximately $-82.8$ and $+62.9$ respectively, while the full range runs from approximately $-2202$ to $+2314$.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{00_target_distribution}
+\caption{Raw target distribution (left) and the same distribution clipped to $[-10, 10]$ (right). Most of the mass concentrates near zero, with rare extreme tails up to the order of $\pm 2200$.}
+\label{fig:target_dist}
+\end{figure}
+
+\paragraph{Reading.} The shape disqualifies plain unweighted MSE as a sensible loss. Tails are real outcomes, not corruption, so we cannot simply clip them; combined with the weighting scheme below, this is the central methodological constraint.
+
+\subsection{Weight distribution and metric concentration}
+\label{sec:weight_dist}
+
+The competition weights are extraordinarily skewed. The median weight is $1{,}699$, while the maximum is $1.39 \times 10^{13}$. \Cref{fig:weight_dist} shows the weight distribution clipped at the 99th percentile (left) and the cumulative-share Lorenz-style curve (right). The top 1\% of rows carry 64.2\% of total weight; the top 5\% carry 92.6\%; the top 10\% carry 98.3\%.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{00_weight_distribution}
+\caption{Weight distribution clipped at the 99th percentile (left) and cumulative share of total weight ranked by weight (right). Approximately 64\% of total weight is concentrated in the top 1\% of rows; 92\% in the top 5\%.}
+\label{fig:weight_dist}
+\end{figure}
+
+\paragraph{Reading.} Unweighted evaluation describes a different competition. The weighted skill score (\cref{sec:skill}) is our only headline metric, and a model that accurately predicts the top one percent of rows has more leverage on the leaderboard than a uniformly mediocre one.
+
+\subsection{Series coverage and split feasibility}
+\label{sec:eda:coverage}
+
+Not every series has enough history to support time-based validation. \Cref{fig:series_length} shows the distribution of per-series lengths. Out of 36{,}923 distinct series, only 1{,}930 (approximately 5\%) cleanly cross the train/validation cutoff at $\mathtt{ts\_index} = 2880$. Many series end before the cutoff, contributing zero validation rows.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{00_series_length_distribution}
+\caption{Distribution of per-series lengths. Most series are short, and the tail of long series carries the structural signal that classical fits can exploit.}
+\label{fig:series_length}
+\end{figure}
+
+\paragraph{Reading.} Per-series classical fitting is feasible only on the eligible subset (cross the cutoff with at least 120 training rows). Global pooled models are not length-constrained --- one reason the comparison between local classical and global ML approaches is not perfectly apples-to-apples.
+
+\subsection{Representative-series selection}
+\label{sec:eda:repseries}
+
+For every per-series figure in this project we plot the same four series. They are selected with explicit reasons rather than at random, in order to span four distinct stress regimes: long history, large weight, high variability, and near-flat behaviour. \Cref{tab:representative} lists the four chosen series. They match the selection used in the midway report, preserving visual continuity.
+
+\begin{table}[H]
+\centering
+\caption{Four representative series chosen for per-series studies. Each series probes a different regime of the panel.}
+\label{tab:representative}
+\begin{tabular}{l l l c}
+\toprule
+Reason & Series key (code/sub\_code) & Horizon & Length \\
+\midrule
+Longest history       & X9BZ68VQ / OYJGNSQK / DPPUO5X2 & 1  & 212 \\
+Highest total weight  & SJZP0OVU / OYJGNSQK / NQ58FVQM & 25 & 156 \\
+Most volatile         & W4S29LF4 / KL66VIS3 / PHHHVYZI & 25 & 162 \\
+Most stable           & SJZP0OVU / OYJGNSQK / NQ58FVQM & 1  & 170 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\Cref{fig:rep_series_raw} shows the raw $y_{\text{target}}$ trajectory of each chosen series with the train/validation cutoff marked. The four panels look profoundly different: the most-volatile series swings between $-500$ and $+500$, while the most-stable series occupies a numerical range narrower than $0.001$.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{00_representative_series_raw}
+\caption{Raw $y_{\text{target}}$ for the four chosen representative series. The dashed vertical line marks $\mathtt{ts\_index} = 2880$, the train/validation cutoff. The four panels span the four stress regimes that any model has to handle.}
+\label{fig:rep_series_raw}
+\end{figure}
+
+\paragraph{Reading.} A one-size-fits-all model will struggle: the most-stable series is essentially numerical noise, while the most-volatile series has obvious cyclical structure. Forecast performance across these four panels is one of the cleanest diagnostics for whether a model family generalises or only fits one regime.
+
+\subsection{Stationarity diagnostics}
+\label{sec:eda:stationarity}
+
+Classical ARIMA-family forecasting assumes stationarity, or stationarity-after-differencing. We therefore run the Augmented Dickey--Fuller test on a stratified sample of 200 eligible series. The ADF test takes the null hypothesis that the series has a unit root (non-stationary); we reject at the 5\% level when the $p$-value is below $0.05$. \Cref{fig:adf} summarises the results.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{00_adf_results}
+\caption{ADF results on 200 sampled eligible series. Left: $p$-value distribution with the $0.05$ threshold marked. Centre: fraction stationary by horizon. Right: fraction stationary by code.}
+\label{fig:adf}
+\end{figure}
+
+Approximately 70.5\% of sampled series reject the unit-root null at the 5\% level. The picture is more nuanced when broken down by horizon: H1 series are more often stationary than longer-horizon cumulative series, which is consistent with the multi-horizon coupling we will document in \cref{sec:cumulation}.
+
+ADF and KPSS have opposite null hypotheses, so running both gives a more honest joint verdict: ADF takes non-stationarity as the null, while KPSS takes stationarity as the null. We classify a series as \emph{stationary} when ADF rejects and KPSS does not, as \emph{unit root} when ADF fails to reject and KPSS rejects, and as \emph{inconclusive} otherwise. \Cref{fig:adf_kpss} reports the joint distribution.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\linewidth]{00_adf_kpss_joint}
+\caption{Joint ADF $+$ KPSS verdict on 200 sampled series. Stationary 64.0\%, inconclusive 29.5\%, unit root 6.5\%.}
+\label{fig:adf_kpss}
+\end{figure}
+
+The stationary share dominates, but the inconclusive bucket is large enough that one-size-fits-all claims about raw levels would be unsafe. We need a repair step (differencing) for the unit-root and inconclusive cases.
+
+\Cref{fig:differencing} re-runs the ADF test on the first-differenced series. The stationary share rises from 70.5\% on raw levels to 98.5\% after differencing.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\linewidth]{00_first_differencing_share}
+\caption{ADF stationary share at the 5\% level: levels (left, $d=0$) versus first differences (right, $d=1$). Differencing pushes the share to nearly 100\%.}
+\label{fig:differencing}
+\end{figure}
+
+\paragraph{Reading.} The diagnostic chain motivates ARIMA with $d=1$ as the default for the classical study and justifies engineered differenced features for global ML models. The 98.5\% post-difference stationarity also bears on the cumulation finding in \cref{sec:cumulation}: differencing a higher-horizon target partially inverts the rolling-sum construction back into the H1 process.
+
+\subsection{Visual stationarity --- rolling statistics}
+\label{sec:eda:rolling}
+
+Statistical tests can disagree on short or noisy series, so a rolling-window view is a useful visual check. \Cref{fig:rolling_raw} shows a 24-step rolling mean and rolling standard deviation on the raw four representative series. The most-volatile series shows clear drift in level and bulging variance; the longest-history series drifts upward; the high-weight and most-stable series occupy near-flat ranges where the rolling mean barely moves.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{00_rolling_raw}
+\caption{Rolling mean and rolling standard deviation (window = 24) on the raw four representative series. The most-volatile series shows clear drift in level and bulging variance.}
+\label{fig:rolling_raw}
+\end{figure}
+
+\Cref{fig:rolling_diff} repeats the same diagnostic on the first-differenced versions of the same series. The rolling means now hug zero and the rolling standard deviations flatten across the cutoff, visually confirming the statistical jump from the previous subsection.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{00_rolling_differenced}
+\caption{Rolling mean and rolling standard deviation (window = 24) on the first-differenced four representative series. The mean oscillates close to zero and the variance is stable, consistent with stationarity.}
+\label{fig:rolling_diff}
+\end{figure}
+
+\paragraph{Reading.} Differenced series behave like the white-noise regime we want before fitting a differenced classical model.
+
+\subsection{Lag Structure: ACF and PACF}
+\label{sec:eda:acf_pacf}
+
+Understanding the temporal dependence structure of the series is essential for selecting appropriate forecasting models. We therefore analyse both the autocorrelation function (ACF) and partial autocorrelation function (PACF), first on a representative anchor series and then at the panel level.
+
+\subsubsection{Anchor-series correlograms}
+
+We begin with the longest-history representative series, which provides sufficient data to expose meaningful lag structure. The ACF measures correlation between the series and its lagged values, while the PACF isolates the direct contribution of each lag after controlling for shorter lags.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{00_acf_pacf_anchor}
+\caption{ACF (left) and PACF (right) for the longest-history representative series. The ACF shows gradual decay, while the PACF exhibits a sharp cutoff after the first few lags, suggesting a low-order autoregressive structure.}
+\label{fig:acf_pacf_anchor}
+\end{figure}
+
+\paragraph{Reading.}
+The ACF shows a smooth decay rather than a sharp cutoff, indicating persistence but not strong periodicity. The PACF exhibits significant spikes at the first few lags (typically lag 1--3), after which contributions become negligible. This pattern is consistent with short-memory autoregressive dynamics rather than long-range dependence or seasonal structure.
+
+\subsubsection{Panel-level aggregation}
+
+While anchor-series analysis is informative, relying on a single trajectory risks overfitting conclusions to one series. To obtain a more robust view, we aggregate the absolute ACF and PACF values across a stratified sample of 200 eligible series.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{00_acf_pacf_panel}
+\caption{Panel-level mean absolute ACF (left) and PACF (right) across 200 sampled series. Low-order lags dominate, with rapid decay beyond lag 3--5 and no clear seasonal peaks.}
+\label{fig:acf_pacf_panel}
+\end{figure}
+
+\paragraph{Reading.}
+The aggregated correlograms confirm that the panel is dominated by short-memory dynamics. Lags 1--3 consistently carry the strongest signal, with contributions decaying rapidly thereafter. There are no pronounced periodic spikes, indicating the absence of strong seasonal structure across the panel.
+
+\subsubsection{Modelling implications}
+
+The combined anchor and panel-level diagnostics lead to three practical conclusions:
+
+\begin{itemize}
+    \item \textbf{Low-order lag structure dominates.} Models should prioritise short lags (1, 2, 3, and optionally 5 or 10), as higher-order dependencies are weak and inconsistent.
+    
+    \item \textbf{No strong seasonality.} The absence of clear periodic patterns suggests that seasonal models or explicit seasonal features are unlikely to provide significant gains.
+    
+    \item \textbf{Support for ARIMA-type models.} The observed ACF/PACF patterns are consistent with low-order AR or ARMA processes after appropriate differencing, reinforcing the earlier stationarity diagnostics.
+\end{itemize}
+
+Overall, the correlogram analysis supports a modelling strategy focused on short-memory dynamics rather than complex seasonal or long-range structures.
+
+\subsection{STL Decomposition}
+\label{sec:eda:stl}
+
+To investigate the presence of seasonal structure in the panel, we apply Seasonal-Trend decomposition using LOESS (STL) to one of the representative series. We focus on the \emph{most-stable} series, as its low variance makes any extracted structure easier to interpret and attribute.
+
+\subsubsection{Motivation}
+
+STL decomposes a time series into three additive components:
+\begin{equation}
+y_t = T_t + S_t + R_t,
+\end{equation}
+where $T_t$ is the trend component, $S_t$ is the seasonal component, and $R_t$ is the residual.
+
+However, STL requires a fixed seasonal period as input. Since the dataset is anonymized and no domain-driven periodicity is available, the period must be inferred from the data.
+
+\subsubsection{ACF-based period selection}
+\label{sec:eda:stl_period}
+
+We estimate the seasonal period using the sample autocorrelation function (ACF). The intuition is that if the series exhibits periodic behaviour with period $p$, then the autocorrelation at lag $p$ should be relatively large.
+
+Given a time series $\{y_t\}_{t=1}^{T}$, we compute the empirical ACF:
+\begin{equation}
+\rho(k) = \frac{\sum_{t=k+1}^{T} (y_t - \bar{y})(y_{t-k} - \bar{y})}{\sum_{t=1}^{T} (y_t - \bar{y})^2}, \quad k = 0, 1, \dots, L,
+\end{equation}
+with $L = 100$.
+
+The period selection follows a heuristic procedure:
+
+\begin{enumerate}
+    \item Compute $\rho(k)$ for $k = 0, 1, \dots, L$.
+    \item Set $\rho(0) = 0$ to ignore the trivial maximum.
+    \item Restrict attention to lags $k \geq 2$ to avoid degenerate short-lag effects.
+    \item Identify the top candidate lags with highest autocorrelation values.
+    \item Select the lag $p$ with the largest autocorrelation:
+    \begin{equation}
+        p = \arg\max_{k \in \mathcal{K}} \rho(k),
+    \end{equation}
+    where $\mathcal{K}$ denotes the set of candidate lags.
+\end{enumerate}
+
+Applying this procedure to the most-stable series yields:
+\[
+p = 8.
+\]
+
+\paragraph{Interpretation.}
+The detected period corresponds to the strongest repeating lag in the autocorrelation structure. However, consistent with earlier ACF/PACF diagnostics (\cref{sec:eda:acf_pacf}), the autocorrelation does not exhibit sharp periodic peaks. Instead, multiple short lags have comparable magnitudes, indicating that the selected period should be interpreted as the strongest among weak candidates rather than evidence of a dominant seasonal cycle.
+
+\subsubsection{STL decomposition}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{00_stl_most_stable_p8}
+\caption{STL decomposition of the most-stable representative series with selected period $p = 8$. The panels show the observed series (top), trend, seasonal, and residual components.}
+\label{fig:stl_stable}
+\end{figure}
+
+\subsubsection{Reading}
+
+Several observations follow from \cref{fig:stl_stable}:
+
+\begin{itemize}
+    \item \textbf{Observed series:} The signal fluctuates within a very narrow range, consistent with the definition of the most-stable series. No clear periodic structure is visually apparent.
+    
+    \item \textbf{Trend component:} The trend is smooth and low-amplitude, capturing slow drift rather than meaningful structural change. Due to the small scale of the series, even minor fluctuations appear visually pronounced.
+    
+    \item \textbf{Seasonal component:} The seasonal panel exhibits oscillatory behaviour at period $p=8$, but its magnitude is comparable to the noise level. The pattern aligns closely with short-lag autocorrelation rather than a true repeating seasonal cycle.
+    
+    \item \textbf{Residual component:} The residual captures irregular fluctuations and occasional spikes. For this near-flat series, most variation is effectively absorbed into the residual.
+\end{itemize}
+
+\subsubsection{Interpretation}
+
+The STL decomposition does not provide evidence of genuine seasonality in the most-stable series. Instead, the apparent seasonal component arises from short-memory autocorrelation that is redistributed by the STL procedure when a short period is imposed.
+
+This finding is consistent with earlier diagnostics:
+\begin{itemize}
+    \item The panel-level ACF shows rapid decay and dominance of low-order lags.
+    \item The periodogram analysis does not reveal strong spectral peaks.
+\end{itemize}
+
+Taken together, these results indicate that the panel is primarily driven by short-memory dynamics rather than periodic structure.
+
+\subsubsection{Implications for modelling}
+
+The absence of meaningful seasonality has direct consequences for model design:
+
+\begin{itemize}
+    \item \textbf{Seasonal models are not prioritised.} There is no strong evidence supporting the use of seasonal ARIMA or explicit seasonal features.
+    
+    \item \textbf{Lag-based features are more relevant.} Short lags (e.g., 1--3, 5, 10) capture most of the temporal dependence.
+    
+    \item \textbf{Focus on stationarity and differencing.} Transformations that stabilise the series (e.g., first differencing) are more important than modelling periodic structure.
+\end{itemize}
+
+\subsubsection{Role in the overall analysis}
+
+The role of STL in this project is diagnostic rather than confirmatory. Its primary contribution is to demonstrate that even when a period is selected via data-driven heuristics, the resulting decomposition does not reveal meaningful seasonal structure. This negative result reinforces the broader conclusion that forecasting performance in this panel is governed by short-memory dynamics, weight concentration, and series heterogeneity rather than periodic behaviour.
+\subsection{Feature audit}
+\label{sec:eda:feature_audit}
+
+The 86 \texttt{feature\_*} columns are anonymised and we cannot interpret them by name. We can, however, audit them statistically. On a 200{,}000-row stratified sample we compute Pearson correlation between each feature and $y_{\text{target}}$, then rank features by absolute correlation. \Cref{fig:feature_corr} shows the top twenty.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{00_feature_corr_top20}
+\caption{Top twenty features by absolute correlation with $y_{\text{target}}$, computed on a 200{,}000-row stratified sample. Green bars are positive correlations, red bars are negative.}
+\label{fig:feature_corr}
+\end{figure}
+
+\paragraph{Reading.} The single largest absolute correlation is below 0.10. No single feature predicts the target well on its own. A separate correlation check among the top twenty features further reveals strong feature--feature blocks, indicating real redundancy in the engineered set. Together these say: the signal is weak, spread across many correlated features, and best exploited by gradient-boosted trees combined with caution when reading importance plots.
+
+
+\subsection{Multi-horizon coupling}
+\label{sec:multihorizon}
+
+The midway report treated $(\mathtt{code},\mathtt{sub\_code},\mathtt{sub\_category},\mathtt{horizon})$ as the natural series identifier and fit each horizon independently. The exploratory analysis in this project shows that the four horizons of the same triple are not independent. For approximately 1.21 million distinct $(\mathtt{code},\mathtt{sub\_code},\mathtt{sub\_category},\mathtt{ts\_index})$ tuples, all four horizons are simultaneously present.
+
+A second consequence of multi-horizon coupling is per-horizon target scaling. \Cref{fig:horizon_scale} shows the target standard deviation and maximum row weight by horizon.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{00_horizon_scale_and_weight}
+\caption{Per-horizon target standard deviation (left) and maximum row weight on a logarithmic scale (right). Target scale grows by a factor of approximately 4.5 from H1 to H25. Maximum weight is highest at H3.}
+\label{fig:horizon_scale}
+\end{figure}
+
+The target standard deviation rises from approximately 11.7 at H1 to 52.8 at H25, a factor of $4.5$.
+
+\paragraph{Reading.} This finding has direct modelling consequences. A single model trained on horizons pooled into one DataFrame, without horizon-aware standardisation, will be dominated by H25 magnitudes and predict at H25 scale. Predictions at H25 scale evaluated against H1 targets will overshoot by a factor of roughly 4.5, producing catastrophically large weighted RMSE on H1 rows. The remedy is straightforward: train one model per horizon, or normalise the target by horizon before training.
+
+
+\subsection{Per-horizon weight dominance}
+\label{sec:weight_per_horizon}
+
+The weight distribution analysis in \cref{sec:weight_dist} was panel-wide. Because $\mathtt{weight}$ and $\mathtt{horizon}$ are correlated, the rows that drive the weighted skill score may not be evenly distributed across horizons. \Cref{fig:weight_horizon} reports the share of total panel weight per horizon and the share of weight within the top 1\% of all weight mass.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{00_weight_by_horizon}
+\caption{Per-horizon weight breakdown. Left: each horizon's share of total panel weight. Right: share of the top 1\% of weight mass by horizon. H3 dominates both views.}
+\label{fig:weight_horizon}
+\end{figure}
+
+The headline numbers are striking. The maximum panel weight ($1.39 \times 10^{13}$) is at H3, not H1. H3 alone holds 37.4\% of total panel weight and 43.6\% of the top-1\% weight mass; H1 holds 25.4\%, H10 holds 14.3\%, and H25 holds 16.8\%.
+
+\paragraph{Reading.} A model that predicts H3 well on the small set of high-weight rows will tend to win the leaderboard regardless of how it performs on the other horizons. The practical consequence is that we report H3 weighted skill as a separate headline number alongside the panel-wide score, and we track H3 performance carefully when comparing models.

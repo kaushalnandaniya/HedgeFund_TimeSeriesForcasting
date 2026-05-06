@@ -1,0 +1,109 @@
+\section{Analysis of the Numerical Results}
+\label{sec:analysis}
+
+This chapter consolidates the per-series numerical results from \cref{sec:classical}, \cref{sec:deep}, and \cref{sec:quantile} into a single comparison and reads off the broader implications. Three concrete questions drove the modelling phase of the project, and we address them in turn.
+
+\subsection{Per-Series Cross-Method Comparison}
+\label{sec:analysis:cross_method}
+
+\Cref{tab:cross_method} stacks the best classical, the best deep, and the median-quantile point forecast for each representative series. All three columns use the same weighted skill score on the per-series validation segment.
+
+\begin{table}[h]
+\centering
+\caption{Best weighted skill score per representative series across the three modelling families. ``Classical'' uses the adaptive 80/20 split from \cref{sec:classical:leaderboard_adaptive}. ``Deep'' uses the architecture results from \cref{tab:deep_results_full}. ``Quantile (median)'' is the point-forecast skill of the LightGBM median quantile from \cref{fig:quantile_panels}.}
+\label{tab:cross_method}
+\begin{tabular}{l c c c}
+\toprule
+Series & Classical (best) & Deep (best) & Quantile (median) \\
+\midrule
+Longest history       & SARIMA $0.0617$        & GRU $0.0686$        & median $0.000$ \\
+Highest total weight  & ARIMA(1,1,1) $0.4667$  & LSTM $0.6264$       & \textbf{median $0.865$} \\
+Most volatile         & AR(1) $0.8277$         & RNN $0.9235$        & median $0.859$ \\
+Most stable           & AR(1) $0.0000$         & all $0.0000$        & median $0.000$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The pattern is clean and tells a single coherent story:
+
+\begin{itemize}
+  \item On \textbf{Highest Total Weight}, the most economically important series, the LightGBM median quantile produces the strongest point forecast at $0.865$, comfortably above the deep LSTM at $0.6264$ and the classical ARIMA(1,1,1) at $0.4667$. The series that matters most by weight gets the largest absolute lift from the most flexible model.
+  \item On \textbf{Most Volatile}, the deep RNN/GRU and the LightGBM median quantile are essentially tied around $0.86$--$0.92$, both substantially above the classical AR(1) at $0.8277$. Sequence learning and global tree-based learning both find the short-lag persistence; classical AR captures most of it but not all.
+  \item On \textbf{Longest History}, every method floors near zero. The series has the most data but the least exploitable autocorrelation, so capacity does not help.
+  \item On \textbf{Most Stable}, every method scores $0.0000$. The target itself barely moves, and the weighted skill score does not credit near-zero forecasts on near-zero targets.
+\end{itemize}
+
+The headline reading is that on this panel \emph{model choice matters most where the data has structure to exploit}. On the two informative series, moving from classical to deep to quantile-median produces real lifts. On the two near-zero-signal series, no model creates lift, regardless of family.
+
+\subsection{Coverage and the Deployable Artefact}
+\label{sec:analysis:coverage}
+
+Point-forecast skill is not the only relevant figure of merit on a hedge-fund panel. An operator scaling positions also needs an interval. \Cref{tab:coverage_summary} summarises the empirical weighted prediction-interval coverage probability (wPICP) and the mean interval width (wMPIW) on each representative series under the rolling chronological backtest of \cref{sec:quantile}.
+
+\begin{table}[h]
+\centering
+\caption{Empirical coverage and width of the calibrated $80\%$ prediction interval on each representative series. Target wPICP is $0.80$.}
+\label{tab:coverage_summary}
+\begin{tabular}{l c c c c c}
+\toprule
+Series & wPICP & PICP & wMPIW & MPIW & Folds \\
+\midrule
+Longest history       & $0.862$ & $0.860$ & $6.437$       & $6.456$       & $5$ \\
+Highest total weight  & $0.792$ & $0.800$ & $0.0005282$   & $0.0005386$   & $2$ \\
+Most volatile         & $0.774$ & $0.767$ & $192.1$       & $158.2$       & $5$ \\
+Most stable           & $0.762$ & $0.767$ & $0.0003690$   & $0.0003736$   & $3$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Empirical wPICP lands within $\pm 0.04$ of the $0.80$ nominal target on every series, with no systematic over- or under-coverage. The interval widths track the underlying volatility: $192$ on the volatile series, $0.0005$ on the highest-weight series, and $0.0003$ on the most-stable series. That is the calibrated artefact a deployment would consume.
+
+\subsection{Why Smoothing Sometimes Wins}
+\label{sec:analysis:smoothing}
+
+A counter-intuitive observation surfaces when comparing the fixed-cutoff classical leaderboard (\cref{tab:classical_leaderboard_fixed}) to the adaptive-split version (\cref{tab:classical_leaderboard_adaptive}). Under the fixed cutoff, smoothing models (SES, Rolling Mean) win three of the four series with skill exactly $0.0000$. Under the adaptive split with longer training windows, more sophisticated models (ARIMA(1,1,1) and AR(1)) take over and the skills become positive.
+
+This is not because smoothing is intrinsically wrong. It is because:
+
+\begin{itemize}
+  \item With seven training points (the fixed-cutoff condition on Highest Total Weight and Most Stable), there is not enough data to estimate any likelihood-based model. SES and Rolling Mean are the only family that can be fit at all, so they win by default.
+  \item With $124$ to $169$ training points (the adaptive-split condition), likelihood-based ARIMA-family models can be estimated, and on series with real differencing-friendly dynamics they take over. Smoothing's win therefore reverses with data quantity, not with data quality.
+\end{itemize}
+
+This makes the methodology choice of moving to adaptive splits substantive rather than cosmetic: it changes which model family wins, in a way that reflects what each family can do when given enough data.
+
+\subsection{Why Recursive Multi-Step Hurts the Highest-Weight Series}
+\label{sec:analysis:recursion}
+
+A second observation surfaces from comparing the deep skill on Highest Total Weight ($0.6264$) to the quantile-median skill on the same series ($0.865$). Both models are LightGBM-class learners under similar capacity; the difference is the protocol.
+
+The deep model in \cref{sec:deep} uses recursive multi-step forecasting: the model predicts step $t+1$, then feeds its own prediction back as input for $t+2$, and so on across the validation window. Errors compound across steps, and on a $32$-row validation window with depth-$5$ memory the compounded error grows large enough to cap the skill at $0.6264$.
+
+The quantile model in \cref{sec:quantile} uses one-step quantile prediction with the panel's true features at each row. The model does not feed its own prediction back; it consumes the panel's row-level features each time and produces an interval. This avoids the recursive compounding entirely, and on a series whose row-level features carry signal, it produces the higher $0.865$ skill.
+
+The implication is methodological: \emph{recursive multi-step is the bottleneck on long horizons, not the architecture}. A non-recursive one-step quantile model with feature inputs beats a recursive multi-step LSTM on this series, despite both being roughly comparable in raw learning capacity.
+
+\subsection{Headline Empirical Findings}
+\label{sec:analysis:headline}
+
+Bringing the numerical results together:
+
+\begin{itemize}
+  \item \textbf{The four representative series cleanly partition into two informative cases (Highest Total Weight, Most Volatile) and two near-zero-signal cases (Longest History, Most Stable).} On the informative cases, modelling produces real lift; on the others, no method beats the floor.
+  \item \textbf{The best classical model on the informative cases is ARIMA(1,1,1) on Highest Total Weight ($0.4667$) and AR(1) on Most Volatile ($0.8277$).} Both are simple. Order selection beyond $p,q \le 3$ would not help.
+  \item \textbf{The best deep model on the informative cases is LSTM on Highest Total Weight ($0.6264$) and RNN on Most Volatile ($0.9235$).} Sequence learning helps where short-range temporal structure exists.
+  \item \textbf{The best one-step quantile-median model on the informative cases is LightGBM on Highest Total Weight ($0.865$) and naive lag-1 on Most Volatile ($0.859$).} The non-recursive protocol is the winner on Highest Total Weight, where the deep recursive forecast compounds error across the validation window.
+  \item \textbf{Calibrated $80\%$ prediction intervals are achievable on every representative series}, with empirical wPICP between $0.762$ and $0.862$. That is the deployable artefact a hedge-fund operator would consume.
+  \item \textbf{The fixed-cutoff classical study is unfit-table on two of four series}; moving to adaptive 80/20 chronological splits changes which model family wins on three of the four series, validating the methodological change.
+\end{itemize}
+
+\subsection{What This Project Does Not Claim}
+\label{sec:analysis:limits}
+
+We are explicit about the boundaries of these results:
+
+\begin{itemize}
+  \item \textbf{Four series is not the whole panel.} The 36{,}923-series panel is much wider than the four representative cases studied here. The patterns identified in \cref{sec:classical}--\cref{sec:quantile} are likely to generalise to series with similar length, weight, and volatility profiles, but they have not been validated on the full panel.
+  \item \textbf{The adaptive split is not directly comparable, slice-for-slice, with the canonical fixed cutoff.} Methodology comparisons between the two are valid; absolute numbers across the two protocols should be read as comparable only within a series.
+  \item \textbf{No claim of optimality.} The classical lineup is order-bounded at $p,q \le 3$, the deep lineup is single-layer with hidden size $32$, and the quantile lineup uses one shared hyperparameter configuration. Tighter tuning could move the headline numbers, but probably not their qualitative ranking.
+\end{itemize}

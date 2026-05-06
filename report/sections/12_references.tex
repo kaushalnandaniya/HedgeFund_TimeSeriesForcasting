@@ -1,0 +1,13 @@
+\section{References}
+\label{sec:references}
+
+The methodology developed in this report draws on the following primary references:
+
+\begin{enumerate}
+  \item Hyndman, R.~J.\ and Athanasopoulos, G., \emph{Forecasting: Principles and Practice}, 3rd ed., OTexts, 2021. Reference for SES, Holt, and the multi-step forecasting protocols used in \cref{sec:classical}.
+  \item Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q.\ and Liu, T.-Y., ``LightGBM: A Highly Efficient Gradient Boosting Decision Tree'', \emph{Advances in Neural Information Processing Systems} (NeurIPS), 2017. The gradient-boosted regressor used in \cref{sec:quantile}.
+  \item Hochreiter, S.\ and Schmidhuber, J., ``Long Short-Term Memory'', \emph{Neural Computation}, 9(8):1735--1780, 1997. LSTM and GRU architectures used in \cref{sec:deep}.
+  \item Romano, Y., Patterson, E.\ and Cand\`es, E., ``Conformalized Quantile Regression'', \emph{NeurIPS}, 2019. CQR construction underlying the calibrated-interval method of \cref{sec:quantile}.
+  \item Kaggle, ``Hedge fund -- time-series forecasting'' competition. \url{https://www.kaggle.com/competitions/ts-forecasting}. The data source for the panel studied in this report.
+  \item \label{anand2024tubeloss} Anand, P., Bandyopadhyay, T.\ and Chandra, S., ``Tube Loss: A Novel Approach for Prediction Interval Estimation and Probabilistic Forecasting'', \emph{arXiv preprint arXiv:2412.06853}, 2024. \url{https://arxiv.org/abs/2412.06853}. Proposed as an alternative prediction interval method in \cref{sec:future_work}.
+\end{enumerate}

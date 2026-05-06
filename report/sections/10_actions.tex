@@ -1,0 +1,118 @@
+\section{Converting the Forecasts into Actions}
+\label{sec:actions}
+
+A model that scores well on a leaderboard is not a trading strategy. This section answers the only question a hedge fund manager actually cares about: \emph{given a forecast and an interval, what do I do, how large is the position, and when do I do nothing?} We keep the framework simple enough to implement in a spreadsheet, yet complete enough to handle the edge cases that kill real strategies.
+
+\subsection{What the Forecast Tells You}
+
+Every row from \cref{sec:quantile} arrives with three numbers:
+\begin{itemize}
+  \item $\hat{y}^{(0.5)}$ --- the median forecast. This is your best guess at where the instrument will be.
+  \item $\hat{y}^{(\tau_{\text{lo}})}$ and $\hat{y}^{(\tau_{\text{hi}})}$ --- the lower and upper bounds of the calibrated 80\% interval. The gap between them tells you how uncertain the model is.
+  \item $w$ --- the row weight, a proxy for how much economic significance this row carries relative to the rest of the panel.
+\end{itemize}
+
+These three numbers are enough to build a complete action rule. You do not need anything else from the model.
+
+\subsection{The Basic Position Rule}
+
+Under a standard mean-variance framework, the optimal position size is proportional to the expected return divided by variance. Using the forecast directly:
+
+\begin{equation}
+  \pi_i \;=\; K \cdot \frac{\hat{y}_i^{(0.5)}}{\sigma_i^{\,2}},
+  \label{eq:position}
+\end{equation}
+
+where $K$ is a global scaling constant (set by your risk budget), and $\sigma_i$ is the per-row uncertainty derived from the interval width:
+\[
+  \sigma_i \;=\; \frac{\hat{y}_i^{(\tau_{\text{hi}})} - \hat{y}_i^{(\tau_{\text{lo}})}}{2 \times 1.28}.
+\]
+The $1.28$ converts an 80\% interval into an approximate $\pm 1\sigma$ Gaussian band.
+
+\paragraph{Sign of the position.} If $\hat{y}^{(0.5)} > 0$, you go long. If $\hat{y}^{(0.5)} < 0$, you go short. If $\hat{y}^{(0.5)} \approx 0$ (within noise), you sit out entirely --- the formula handles this automatically because the numerator is near zero.
+
+\subsection{Worked Example: Three Series Side by Side}
+
+\Cref{tab:worked_example} applies the rule to the three series where the model produces a meaningful signal.
+
+\begin{table}[htbp]
+\centering
+\caption{Position-sizing rule applied to three representative series. $K = 1$ for illustration. The Most Stable and Longest History series produce $\pi \approx 0$ and are omitted.}
+\label{tab:worked_example}
+\begin{tabular}{l r r r r r}
+\toprule
+Series & $\hat{y}^{(0.5)}$ & Band width & $\sigma$ & $\pi \propto \hat{y}/\sigma^2$ & Direction \\
+\midrule
+Highest Total Weight & $+0.000300$ & $0.000528$ & $0.000206$ & $+7{,}082$ & Long \\
+Most Volatile        & $+120$      & $159.1$    & $62.1$     & $+0.031$   & Long \\
+Highest Total Weight & $-0.000150$ & $0.000528$ & $0.000206$ & $-3{,}541$ & Short \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The ratio $\pi$ for Highest Total Weight is roughly $200{,}000\times$ larger than for Most Volatile --- not because the HTW point forecast is bigger in absolute terms, but because the model is far more confident there. This is exactly right from a portfolio perspective: the high-weight, high-confidence series should dominate the book.
+
+\subsection{Risk Controls --- The Four You Cannot Skip}
+
+\paragraph{1. Hard position caps per series.}
+The top $1\%$ of rows by weight carry $64\%$ of evaluation mass. Without a cap, a single bad prediction on code \texttt{83EG83KQ} can wipe out gains across the rest of the book. Set a maximum dollar exposure per \texttt{code}, regardless of what the formula says. A reasonable starting point is: no single code contributes more than $20\%$ of total portfolio notional.
+
+\paragraph{2. Interval must be finite and trusted.}
+Before trading any row, check that the calibrated wPICP on that series (computed on rolling historical validation data, not the current period) is in the range $[0.70,\ 0.90]$. If wPICP has drifted outside this band, the interval is no longer calibrated and $\sigma_i$ is unreliable, which means the denominator in \cref{eq:position} is wrong. Do not trade that series until it is recalibrated.
+
+\paragraph{3. Minimum history requirement.}
+Series with fewer than 30 historical observations before the current row should be skipped entirely. The rolling 70/20/20 protocol requires enough history to produce a reliable calibration slice. Short series (the Highest Total Weight series has only 37 train points) are a borderline case; they should carry a reduced $K$ (e.g.\ $K/3$) until more data accumulates.
+
+\paragraph{4. Skill floor.}
+Only trade series where the rolling point-forecast skill from \cref{sec:quantile} is strictly positive and above a minimum threshold, say $\text{Skill} \geq 0.05$. A skill of $0.000$ means the model is no better than predicting zero on every row --- and the position-sizing formula will also produce $\pi \approx 0$ on those rows, so in practice the model self-reports when it has no edge. The floor is an explicit belt-and-suspenders check.
+
+\subsection{When Not to Trade --- Edge Cases}
+
+A hedge fund manager spends more time deciding \emph{not} to trade than deciding to trade. Here are the specific cases that arise on this panel:
+
+\paragraph{Skill is zero but the interval covers.}
+This is the Longest History and Most Stable situation: wPICP is in range but Skill $= 0.000$. The model is well-calibrated about its own uncertainty but has no directional edge. \textbf{Action: do not trade.} The interval tells you the range is $[\hat{y}_{\text{lo}}, \hat{y}_{\text{hi}}]$ but the median is near zero, so the expected profit of any long or short position is zero before costs.
+
+\paragraph{Skill is high but the interval is too wide.}
+Most Volatile has Skill $= 0.959$ and wPICP $= 0.774$, but wMPIW $= 159.1$. The model predicts direction correctly most of the time, but the uncertainty band is so large that any individual trade carries substantial risk. \textbf{Action: trade, but with a heavily reduced $K$.} The formula naturally scales down the position ($\sigma = 62.1$ gives $\pi \propto 0.031$ per unit), but you should also independently verify the interval width is not a sign of a regime shift.
+
+\paragraph{The interval lower bound crosses zero.}
+If $\hat{y}^{(0.5)} > 0$ but $\hat{y}^{(\tau_{\text{lo}})} < 0$, the model predicts a positive expected return but the downside scenario includes a negative return. This is a directionally ambiguous forecast. \textbf{Action: reduce position by the fraction of the interval that lies on the wrong side of zero.} Concretely, if the interval is $[-0.0001, +0.0005]$, only $5/6$ of the probability mass is on the long side, so scale $K$ by $5/6$.
+
+\paragraph{The point forecast is large but the weight is tiny.}
+A large $\pi$ on a row with weight $w \approx 0$ contributes essentially nothing to the weighted skill score and represents a distraction. \textbf{Action: apply a weight floor.} Only trade rows whose weight exceeds a threshold (e.g.\ the median weight in the panel). The bottom $50\%$ of rows by weight account for less than $0.1\%$ of evaluation mass --- no trading decision on those rows meaningfully affects performance.
+
+\paragraph{A code is missing entirely from the current panel.}
+In live deployment a code that was in training may not appear in the current test batch. The model has no prediction for it. \textbf{Action: flat.} Do not carry a stale position from the previous period just because the code was profitable then.
+
+\paragraph{Model has not been retrained recently.}
+The two-model K-fold approach in \cref{sec:two_model} uses an expanding training window. If the last retraining used data only up to $\mathtt{ts\_index} = 3601$ and it is now $\mathtt{ts\_index} = 3800$, the model has not seen 199 time steps of live data. Feature distributions may have drifted. \textbf{Action: set a retraining trigger.} A practical rule: retrain whenever the gap between the last training cutoff and the current index exceeds $10\%$ of the total training history.
+
+\subsection{Live Monitoring Checklist}
+
+A manager running this strategy should track the following metrics in a live dashboard, updated after each period:
+
+\begin{enumerate}
+  \item \textbf{Rolling wPICP per high-weight code.} Target: $[0.75,\ 0.85]$. Breach triggers recalibration.
+  \item \textbf{Rolling Skill on codes 83EG83KQ, SJZP0OVU, MLAAMU3K.} These three codes carry $97.8\%$ of panel weight. A skill drop on any one is a P\&L event.
+  \item \textbf{Interval width ratio}: current wMPIW divided by the backtest baseline wMPIW. A ratio above $1.5$ means volatility has spiked and positions should be cut.
+  \item \textbf{Coverage gap}: $|\text{rolling wPICP} - 0.80|$ per series. Target: below $0.05$. Above $0.10$ triggers model review.
+  \item \textbf{Number of rows with $\hat{y}^{(0.5)} = 0$ exactly.} A sudden jump in zero-prediction rows is a sign of a data feed problem, not a market signal.
+\end{enumerate}
+
+\subsection{Summary: The Decision Tree}
+
+For each row arriving in production, run the following checks in order. Stop at the first failure.
+
+\begin{enumerate}
+  \item Does the series have at least 30 historical observations? \emph{No} $\to$ skip.
+  \item Is rolling wPICP in $[0.70, 0.90]$? \emph{No} $\to$ skip.
+  \item Is rolling Skill $\geq 0.05$? \emph{No} $\to$ skip.
+  \item Is $|\hat{y}^{(0.5)}|$ above the noise floor (e.g.\ $> 0.01 \times \sigma_i$)? \emph{No} $\to$ skip.
+  \item Compute $\pi_i = K \cdot \hat{y}^{(0.5)} / \sigma_i^2$.
+  \item If the interval crosses zero, scale $\pi_i$ by the fraction of the interval on the correct side.
+  \item Apply hard cap: $|\pi_i| \leq \pi_{\max}$ per code.
+  \item Execute.
+\end{enumerate}
+
+Steps 1--4 filter out the signal-poor and miscalibrated rows before any money moves. Steps 5--7 size the position correctly given the uncertainty. Step 8 is the only step that costs anything.
