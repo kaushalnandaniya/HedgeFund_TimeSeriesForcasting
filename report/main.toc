@@ -1,0 +1,141 @@
+\contentsline {section}{\numberline {1}Introduction}{5}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Background and Motivation}{5}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Problem Statement}{6}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Objectives}{6}{subsection.1.3}%
+\contentsline {subsection}{\numberline {1.4}Scope of this report}{7}{subsection.1.4}%
+\contentsline {section}{\numberline {2}Data Source and Characteristics}{8}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Source}{8}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Panel keys and unit of analysis}{8}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}The four horizons are coupled}{8}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Chronological constraint}{9}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}Eligibility for per-series studies}{9}{subsection.2.5}%
+\contentsline {section}{\numberline {3}The Weighted Skill Score}{10}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Definition}{10}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Intuitive meaning}{10}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Practical consequences for this project}{10}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Data Pre-processing and Exploratory Analysis}{12}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Schema, panel scale, and train--test comparability}{12}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Missing values}{12}{subsection.4.2}%
+\contentsline {paragraph}{Reading.}{13}{figure.caption.2}%
+\contentsline {subsection}{\numberline {4.3}Target distribution}{13}{subsection.4.3}%
+\contentsline {paragraph}{Reading.}{13}{figure.caption.3}%
+\contentsline {subsection}{\numberline {4.4}Weight distribution and metric concentration}{13}{subsection.4.4}%
+\contentsline {paragraph}{Reading.}{13}{figure.caption.4}%
+\contentsline {subsection}{\numberline {4.5}Series coverage and split feasibility}{14}{subsection.4.5}%
+\contentsline {paragraph}{Reading.}{14}{figure.caption.5}%
+\contentsline {subsection}{\numberline {4.6}Representative-series selection}{14}{subsection.4.6}%
+\contentsline {paragraph}{Reading.}{15}{figure.caption.7}%
+\contentsline {subsection}{\numberline {4.7}Stationarity diagnostics}{15}{subsection.4.7}%
+\contentsline {paragraph}{Reading.}{16}{figure.caption.10}%
+\contentsline {subsection}{\numberline {4.8}Visual stationarity --- rolling statistics}{17}{subsection.4.8}%
+\contentsline {paragraph}{Reading.}{18}{figure.caption.12}%
+\contentsline {subsection}{\numberline {4.9}Lag Structure: ACF and PACF}{18}{subsection.4.9}%
+\contentsline {subsubsection}{\numberline {4.9.1}Anchor-series correlograms}{18}{subsubsection.4.9.1}%
+\contentsline {paragraph}{Reading.}{19}{figure.caption.13}%
+\contentsline {subsubsection}{\numberline {4.9.2}Panel-level aggregation}{19}{subsubsection.4.9.2}%
+\contentsline {paragraph}{Reading.}{19}{figure.caption.14}%
+\contentsline {subsubsection}{\numberline {4.9.3}Modelling implications}{19}{subsubsection.4.9.3}%
+\contentsline {subsection}{\numberline {4.10}STL Decomposition}{20}{subsection.4.10}%
+\contentsline {subsubsection}{\numberline {4.10.1}Motivation}{20}{subsubsection.4.10.1}%
+\contentsline {subsubsection}{\numberline {4.10.2}ACF-based period selection}{20}{subsubsection.4.10.2}%
+\contentsline {paragraph}{Interpretation.}{21}{equation.4.4}%
+\contentsline {subsubsection}{\numberline {4.10.3}STL decomposition}{21}{subsubsection.4.10.3}%
+\contentsline {subsubsection}{\numberline {4.10.4}Reading}{21}{subsubsection.4.10.4}%
+\contentsline {subsubsection}{\numberline {4.10.5}Interpretation}{22}{subsubsection.4.10.5}%
+\contentsline {subsubsection}{\numberline {4.10.6}Implications for modelling}{22}{subsubsection.4.10.6}%
+\contentsline {subsubsection}{\numberline {4.10.7}Role in the overall analysis}{22}{subsubsection.4.10.7}%
+\contentsline {subsection}{\numberline {4.11}Feature audit}{22}{subsection.4.11}%
+\contentsline {paragraph}{Reading.}{23}{figure.caption.16}%
+\contentsline {subsection}{\numberline {4.12}Multi-horizon coupling}{23}{subsection.4.12}%
+\contentsline {paragraph}{Reading.}{24}{figure.caption.17}%
+\contentsline {subsection}{\numberline {4.13}Per-horizon weight dominance}{24}{subsection.4.13}%
+\contentsline {paragraph}{Reading.}{24}{figure.caption.18}%
+\contentsline {section}{\numberline {5}Classical Forecasting Models}{26}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Study Setup and the Four Representative Series}{26}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Classical Model Lineup}{26}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Classical Model Math}{27}{subsection.5.3}%
+\contentsline {paragraph}{Rolling mean, SES, and Holt (smoothing).}{27}{subsection.5.3}%
+\contentsline {paragraph}{AR and MA.}{27}{equation.5.6}%
+\contentsline {paragraph}{ARMA and ARIMA.}{27}{equation.5.8}%
+\contentsline {subsection}{\numberline {5.4}Evaluation Protocol (Fixed Cutoff)}{27}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}Per-Series Leaderboard (Fixed Cutoff)}{28}{subsection.5.5}%
+\contentsline {subsection}{\numberline {5.6}Overall Comparison Across Models}{29}{subsection.5.6}%
+\contentsline {subsection}{\numberline {5.7}Forecast Overlays (Fixed Cutoff)}{29}{subsection.5.7}%
+\contentsline {subsection}{\numberline {5.8}Adaptive-Split Motivation}{30}{subsection.5.8}%
+\contentsline {subsection}{\numberline {5.9}Setup and Libraries}{30}{subsection.5.9}%
+\contentsline {subsection}{\numberline {5.10}Per-Series Leaderboard (Adaptive Split)}{31}{subsection.5.10}%
+\contentsline {subsection}{\numberline {5.11}Adaptive-Split Forecast Overlays}{32}{subsection.5.11}%
+\contentsline {subsection}{\numberline {5.12}What the Classical Study Establishes}{32}{subsection.5.12}%
+\contentsline {section}{\numberline {6}Deep Sequence Models}{33}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Why Add Deep Models Here}{33}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Why Univariate, and What Stays Fixed}{33}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Architectures}{34}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}What to Expect}{34}{subsection.6.4}%
+\contentsline {subsection}{\numberline {6.5}Deep Forecast Plots}{34}{subsection.6.5}%
+\contentsline {subsection}{\numberline {6.6}Per-Series Deep Results}{34}{subsection.6.6}%
+\contentsline {subsection}{\numberline {6.7}Per-Step Skill Within the Validation Window}{35}{subsection.6.7}%
+\contentsline {subsection}{\numberline {6.8}What the Deep Study Establishes}{36}{subsection.6.8}%
+\contentsline {section}{\numberline {7}Quantile Regression Forecasts}{38}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Quantile Loss and the Interval Construction}{38}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Shared LightGBM Setup}{38}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Rolling Chronological Backtest}{38}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}Per-Series Interval Selection}{39}{subsection.7.4}%
+\contentsline {subsection}{\numberline {7.5}Reported Metrics}{39}{subsection.7.5}%
+\contentsline {subsection}{\numberline {7.6}Per-Series Quantile Forecasts}{39}{subsection.7.6}%
+\contentsline {paragraph}{Why \texttt {q02-q95} was selected.}{40}{figure.caption.31}%
+\contentsline {paragraph}{Why \texttt {q05-q90} and \texttt {naive\_lag1} were selected.}{40}{figure.caption.32}%
+\contentsline {paragraph}{Why \texttt {q10-q95} and \texttt {naive\_lag1} were selected.}{42}{figure.caption.33}%
+\contentsline {paragraph}{Why \texttt {q10-q90} and \texttt {lgb\_conformal} were selected.}{43}{figure.caption.34}%
+\contentsline {subsection}{\numberline {7.7}What the Quantile Study Establishes}{43}{subsection.7.7}%
+\contentsline {section}{\numberline {8}Two-Model Approach with Time-Based K-Fold}{45}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Why Two Models Rather Than One}{45}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}The Two Models}{45}{subsection.8.2}%
+\contentsline {paragraph}{Precision model (high-weight codes only).}{45}{subsection.8.2}%
+\contentsline {paragraph}{Range model (remaining codes).}{46}{subsection.8.2}%
+\contentsline {paragraph}{Per-horizon strategy.}{46}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Time-Based K-Fold Cross-Validation}{46}{subsection.8.3}%
+\contentsline {paragraph}{Seed ensembling within each fold.}{46}{table.caption.35}%
+\contentsline {paragraph}{Across-fold averaging.}{47}{table.caption.35}%
+\contentsline {subsection}{\numberline {8.4}Feature Engineering}{47}{subsection.8.4}%
+\contentsline {paragraph}{Target-encoded categoricals.}{47}{subsection.8.4}%
+\contentsline {paragraph}{Engineered interactions.}{47}{subsection.8.4}%
+\contentsline {paragraph}{Cross-sectional normalisation.}{47}{subsection.8.4}%
+\contentsline {paragraph}{Lag features.}{47}{subsection.8.4}%
+\contentsline {paragraph}{Rolling features.}{47}{subsection.8.4}%
+\contentsline {paragraph}{Trend features.}{47}{subsection.8.4}%
+\contentsline {paragraph}{Differencing and ranks.}{47}{subsection.8.4}%
+\contentsline {paragraph}{Time cycle.}{48}{subsection.8.4}%
+\contentsline {subsection}{\numberline {8.5}Results}{48}{subsection.8.5}%
+\contentsline {paragraph}{Forecast visualisation.}{48}{table.caption.36}%
+\contentsline {paragraph}{Why the per-fold scores vary.}{48}{figure.caption.41}%
+\contentsline {paragraph}{Why the average is the right headline.}{48}{figure.caption.41}%
+\contentsline {subsection}{\numberline {8.6}Why This Beats Quantile Regression on the Headline Score}{52}{subsection.8.6}%
+\contentsline {subsection}{\numberline {8.7}What the Two-Model Study Establishes}{52}{subsection.8.7}%
+\contentsline {section}{\numberline {9}Analysis of the Numerical Results}{53}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Per-Series Cross-Method Comparison}{53}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Coverage and the Deployable Artefact}{53}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}Why Smoothing Sometimes Wins}{54}{subsection.9.3}%
+\contentsline {subsection}{\numberline {9.4}Why Recursive Multi-Step Hurts the Highest-Weight Series}{54}{subsection.9.4}%
+\contentsline {subsection}{\numberline {9.5}Headline Empirical Findings}{54}{subsection.9.5}%
+\contentsline {subsection}{\numberline {9.6}What This Project Does Not Claim}{55}{subsection.9.6}%
+\contentsline {section}{\numberline {10}Converting the Forecasts into Actions}{56}{section.10}%
+\contentsline {subsection}{\numberline {10.1}What the Forecast Tells You}{56}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}The Basic Position Rule}{56}{subsection.10.2}%
+\contentsline {paragraph}{Sign of the position.}{56}{equation.10.10}%
+\contentsline {subsection}{\numberline {10.3}Worked Example: Three Series Side by Side}{56}{subsection.10.3}%
+\contentsline {subsection}{\numberline {10.4}Risk Controls --- The Four You Cannot Skip}{57}{subsection.10.4}%
+\contentsline {paragraph}{1. Hard position caps per series.}{57}{subsection.10.4}%
+\contentsline {paragraph}{2. Interval must be finite and trusted.}{57}{subsection.10.4}%
+\contentsline {paragraph}{3. Minimum history requirement.}{57}{subsection.10.4}%
+\contentsline {paragraph}{4. Skill floor.}{57}{subsection.10.4}%
+\contentsline {subsection}{\numberline {10.5}When Not to Trade --- Edge Cases}{57}{subsection.10.5}%
+\contentsline {paragraph}{Skill is zero but the interval covers.}{57}{subsection.10.5}%
+\contentsline {paragraph}{Skill is high but the interval is too wide.}{57}{subsection.10.5}%
+\contentsline {paragraph}{The interval lower bound crosses zero.}{57}{subsection.10.5}%
+\contentsline {paragraph}{The point forecast is large but the weight is tiny.}{58}{subsection.10.5}%
+\contentsline {paragraph}{A code is missing entirely from the current panel.}{58}{subsection.10.5}%
+\contentsline {paragraph}{Model has not been retrained recently.}{58}{subsection.10.5}%
+\contentsline {subsection}{\numberline {10.6}Live Monitoring Checklist}{58}{subsection.10.6}%
+\contentsline {subsection}{\numberline {10.7}Summary: The Decision Tree}{58}{subsection.10.7}%
+\contentsline {section}{\numberline {11}Future Work}{60}{section.11}%
+\contentsline {section}{\numberline {12}References}{62}{section.12}%
